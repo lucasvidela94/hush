@@ -27,8 +27,9 @@ hush_check(names)              → {missing[], present[]}
 hush_list()                    → nombres
 hush_need(name, hint?)         → pide el valor por prompt nativo y lo guarda.
                                  hint: dónde lo encuentra el humano.
-hush_run(command[], only[]?, all?, stdin_name?) → ejecuta con inyección + redacción.
-                                 Deny-by-default: exige only[] o all=true.
+hush_run(command[], only[]?, all?, confirm?, stdin_name?) → ejecuta con inyección + redacción.
+                                 Deny-by-default: exige only[] o all=true, y confirmación
+                                 humana por prompt (confirm=true solo si ya aprobó y no hay prompt).
                                  stdin_name: para comandos que leen por stdin
                                  (ej: ["npx","wrangler","secret","put","X"] con stdin_name X)
 ```
@@ -37,7 +38,7 @@ hush_run(command[], only[]?, all?, stdin_name?) → ejecuta con inyección + red
 
 ```bash
 hush check WHATSAPP_VERIFY_TOKEN META_APP_SECRET
-hush run --all -- npx wrangler secret list
+hush run --only CLOUDFLARE_API_TOKEN -- npx wrangler secret list
 hush stdin WHATSAPP_VERIFY_TOKEN -- npx wrangler secret put WHATSAPP_VERIFY_TOKEN
 hush run --only META_APP_SECRET -- npx wrangler deploy
 ```

@@ -27,10 +27,11 @@ func needTool() mcp.Tool {
 
 func runTool() mcp.Tool {
 	return mcp.NewTool("hush_run",
-		mcp.WithDescription("Run a command with named secrets injected into the child process environment. Output is redacted before returning. Injection is deny-by-default: pass only[] or all=true explicitly."),
+		mcp.WithDescription("Run a command with named secrets injected into the child process environment. Output is redacted before returning. Injection is deny-by-default (only[] or all=true) and requires human confirmation via prompt; pass confirm=true only when the human already approved and the client cannot prompt."),
 		mcp.WithArray("command", mcp.Description("Command and arguments to run"), mcp.Required()),
 		mcp.WithArray("only", mcp.Description("Inject only these secret names")),
 		mcp.WithBoolean("all", mcp.Description("Inject all secrets. Prefer only[] when possible.")),
+		mcp.WithBoolean("confirm", mcp.Description("Human already approved. Only for clients without prompt support.")),
 		mcp.WithString("stdin_name", mcp.Description("Write this secret to the command stdin, e.g. wrangler secret put")),
 	)
 }

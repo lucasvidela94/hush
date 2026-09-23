@@ -155,6 +155,7 @@ func TestRunRedacta(t *testing.T) {
 	res, err := s.handleRun(context.Background(), callRequest(map[string]any{
 		"command": []any{"sh", "-c", "echo $T"},
 		"only":    []any{"T"},
+		"confirm": true,
 	}))
 	if err != nil {
 		t.Fatal(err)
@@ -180,6 +181,63 @@ func TestRunStdinFaltante(t *testing.T) {
 	}
 	if got := resultText(t, res); !strings.Contains(got, "hush set AUSENTE") {
 		t.Fatalf("sin fallback: %q", got)
+	}
+}
+
+func TestRunConfirmadoPorElicitation(t *testing.T) {
+	store := vault.New(t.TempDir())
+	if err := store.Save(map[string]string{"T": "token-ultrasecreto"}); err != nil {
+		t.Fatal(err)
+	}
+	s := testServer(store, fakeElicitor{
+		action:  mcp.ElicitationResponseActionAccept,
+		content: map[string]any{"confirm": true},
+	})
+	res, err := s.handleRun(context.Background(), callRequest(map[string]any{
+		"command": []any{"sh", "-c", "echo ok"},
+		"only":    []any{"T"},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := resultText(t, res); !strings.Contains(got, "exit=0") {
+		t.Fatalf("no ejecutó: %q", got)
+	}
+}
+
+func TestRunRechazadoPorHumano(t *testing.T) {
+	store := vault.New(t.TempDir())
+	if err := store.Save(map[string]string{"T": "token-ultrasecreto"}); err != nil {
+		t.Fatal(err)
+	}
+	s := testServer(store, fakeElicitor{action: mcp.ElicitationResponseActionDecline})
+	res, err := s.handleRun(context.Background(), callRequest(map[string]any{
+		"command": []any{"sh", "-c", "echo $T"},
+		"only":    []any{"T"},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := resultText(t, res); strings.Contains(got, "token-ultrasecreto") || strings.Contains(got, "exit=") {
+		t.Fatalf("ejecutó sin confirmar: %q", got)
+	}
+}
+
+func TestRunSinElicitPideConfirm(t *testing.T) {
+	store := vault.New(t.TempDir())
+	if err := store.Save(map[string]string{"T": "token-ultrasecreto"}); err != nil {
+		t.Fatal(err)
+	}
+	s := testServer(store, fakeElicitor{err: errors.New("sin elicitation")})
+	res, err := s.handleRun(context.Background(), callRequest(map[string]any{
+		"command": []any{"sh", "-c", "echo hola"},
+		"only":    []any{"T"},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := resultText(t, res); !strings.Contains(got, "confirm=true") {
+		t.Fatalf("sin guía: %q", got)
 	}
 }
 

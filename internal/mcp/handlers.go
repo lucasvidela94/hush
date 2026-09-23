@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
 
 	"hush/internal/runner"
+	"hush/internal/vault"
 )
 
 const maxOutput = 32 * 1024
@@ -116,8 +118,8 @@ func (s *Server) handleNeed(ctx context.Context, request mcp.CallToolRequest) (*
 		}
 		return r
 	}, hint)
-	if len(hint) > maxHint {
-		hint = hint[:maxHint]
+	if len([]rune(hint)) > maxHint {
+		hint = string([]rune(hint)[:maxHint])
 	}
 	message := fmt.Sprintf("Valor para %s. Se guarda localmente y nunca entra al chat.", name)
 	if strings.TrimSpace(hint) != "" {
@@ -129,11 +131,55 @@ func (s *Server) handleNeed(ctx context.Context, request mcp.CallToolRequest) (*
 		return mcp.NewToolResultText(fallbackMessage(name)), nil
 	}
 
+	lock, err := vault.Acquire(s.store.Dir())
+	if err != nil {
+		return mcp.NewToolResultError("hush: no se pudo bloquear el vault"), nil
+	}
+	defer lock.Release()
+	values, err = s.store.Load()
+	if err != nil {
+		return mcp.NewToolResultError("hush: no se pudo leer el vault"), nil
+	}
+	if _, ok := values[name]; ok {
+		return mcp.NewToolResultText(fmt.Sprintf("hush: %s ya está guardado", name)), nil
+	}
 	values[name] = value
 	if err := s.store.Save(values); err != nil {
 		return mcp.NewToolResultError("hush: no se pudo guardar"), nil
 	}
 	return mcp.NewToolResultText(fmt.Sprintf("hush: %s guardado", name)), nil
+}
+
+func (s *Server) confirmRun(ctx context.Context, command []string, names []string, args map[string]any) (bool, string) {
+	if confirm, _ := args["confirm"].(bool); confirm {
+		return true, ""
+	}
+	elicitCtx, cancel := context.WithTimeout(ctx, s.elicitTimeout)
+	defer cancel()
+	req := mcp.ElicitationRequest{
+		Params: mcp.ElicitationParams{
+			Message: fmt.Sprintf("Ejecutar `%s` con secretos [%s]?", strings.Join(command, " "), strings.Join(names, ", ")),
+			RequestedSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"confirm": map[string]any{"type": "boolean", "description": "Confirmar ejecución"},
+				},
+				"required": []string{"confirm"},
+			},
+		},
+	}
+	result, err := s.elicitor.RequestElicitation(elicitCtx, req)
+	if err != nil {
+		return false, "hush: sin confirmación interactiva. Si el humano ya aprobó, repetí con confirm=true; si no, corre el comando en tu terminal con hush run."
+	}
+	if result.Action != mcp.ElicitationResponseActionAccept {
+		return false, "hush: ejecución no confirmada por el humano."
+	}
+	content, _ := result.Content.(map[string]any)
+	if confirm, _ := content["confirm"].(bool); confirm {
+		return true, ""
+	}
+	return false, "hush: ejecución no confirmada por el humano."
 }
 
 func (s *Server) elicitValue(ctx context.Context, message string) (string, bool) {
@@ -169,6 +215,8 @@ func fallbackMessage(name string) string {
 }
 
 func (s *Server) handleRun(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
 	args := request.GetArguments()
 	command, err := stringList(args, "command")
 	if err != nil || len(command) == 0 {
@@ -200,14 +248,26 @@ func (s *Server) handleRun(ctx context.Context, request mcp.CallToolRequest) (*m
 		return mcp.NewToolResultError("hush_run exige only[] o all=true explícito (no inyecto todo por defecto)"), nil
 	}
 
+	names := []string{}
+	for k := range extra {
+		names = append(names, k)
+	}
+	stdinName = strings.TrimSpace(stdinName)
+	if stdinName != "" {
+		if _, ok := values[stdinName]; !ok {
+			return mcp.NewToolResultText(fallbackMessage(stdinName)), nil
+		}
+		names = []string{stdinName}
+	}
+	confirmed, message := s.confirmRun(ctx, command, names, args)
+	if !confirmed {
+		return mcp.NewToolResultText(message), nil
+	}
+
 	var out, errOut limitedBuffer
 	var code int
-	if strings.TrimSpace(stdinName) != "" {
-		secret, ok := values[strings.TrimSpace(stdinName)]
-		if !ok {
-			return mcp.NewToolResultText(fallbackMessage(strings.TrimSpace(stdinName))), nil
-		}
-		code = runner.Pipe(ctx, secret, command, &out, &errOut)
+	if stdinName != "" {
+		code = runner.Pipe(ctx, values[stdinName], command, &out, &errOut)
 	} else {
 		code = runner.Run(ctx, extra, command, nil, &out, &errOut)
 	}

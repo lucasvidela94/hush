@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"hush/internal/mcp"
 	"hush/internal/runner"
@@ -74,6 +76,12 @@ func set(argv []string, store vault.Store, stdin *os.File, stdout io.Writer) int
 		fmt.Fprintln(stdout, "hush: valor vacío, cancelado")
 		return Failed
 	}
+	lock, err := vault.Acquire(store.Dir())
+	if err != nil {
+		fmt.Fprintf(stdout, "hush: %s\n", err)
+		return Failed
+	}
+	defer lock.Release()
 	values, err := store.Load()
 	if err != nil {
 		fmt.Fprintln(stdout, "hush: no se pudo leer el vault")
@@ -184,7 +192,9 @@ func run(argv []string, store vault.Store, stdin *os.File, stdout, stderr io.Wri
 			extra[k] = v
 		}
 	}
-	return runner.Run(context.Background(), extra, rest, stdin, stdout, stderr)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	return runner.Run(ctx, extra, rest, stdin, stdout, stderr)
 }
 
 func pipeIn(argv []string, store vault.Store, stdout, stderr io.Writer) int {
@@ -202,7 +212,9 @@ func pipeIn(argv []string, store vault.Store, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "hush: falta %s → pedí al humano: hush set %s\n", argv[0], argv[0])
 		return Missing
 	}
-	return runner.Pipe(context.Background(), value, argv[2:], stdout, stderr)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	return runner.Pipe(ctx, value, argv[2:], stdout, stderr)
 }
 
 func printUsage(w io.Writer) {
@@ -232,7 +244,7 @@ var helpText = map[string]string{
 	"list":   "uso: hush list\nLista los nombres guardados. Nunca muestra valores.",
 	"run":    "uso: hush run [--only A,B | --all] -- comando...\nCorre el comando solo con los secretos indicados (todos solo con --all explícito) y tapa los valores en la salida.\nej: hush run --only API_KEY -- ./deploy.sh",
 	"stdin":  "uso: hush stdin NOMBRE -- comando...\nLe escribe el valor al stdin del comando. Para programas que piden el secreto por consola.\nej: hush stdin MI_TOKEN -- npx wrangler secret put MI_TOKEN",
-	"export": "uso: hush export [NOMBRES...]\nMuestra valores en TU terminal. Se niega si la salida no es una terminal (así ningún agente puede capturarlos).",
+	"export": "uso: hush export [NOMBRES...]\nMuestra valores en TU terminal. Se niega si la salida no es una terminal (un pty no prueba que haya un humano: ver SECURITY.md).",
 	"serve":  "uso: hush serve\nServidor MCP (stdio) para tu harness de IA. Registralo con: hush setup",
 	"setup":  "uso: hush setup [--yes]\nCon terminal: wizard que detecta tus harnesses y te propone registrar el servidor MCP (con backup). Sin terminal o con --yes: instala skills y muestra cómo conectar a mano.",
 	"update": "uso: hush update\nDescarga la última versión desde GitHub releases (verificada por checksum) y la instala.",

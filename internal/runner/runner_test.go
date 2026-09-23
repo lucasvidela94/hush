@@ -5,6 +5,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestRunRedactaEnv(t *testing.T) {
@@ -42,5 +43,19 @@ func TestRunPropagaExit(t *testing.T) {
 	code := Run(context.Background(), nil, []string{"sh", "-c", "exit 7"}, nil, &out, &errB)
 	if code != 7 {
 		t.Fatalf("exit %d, quiero 7", code)
+	}
+}
+
+func TestMataGrupoCompleto(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	defer cancel()
+	var out, errB bytes.Buffer
+	start := time.Now()
+	code := Run(ctx, nil, []string{"sh", "-c", "sleep 30 & sleep 30"}, nil, &out, &errB)
+	if elapsed := time.Since(start); elapsed > 10*time.Second {
+		t.Fatalf("tardó %v, el grupo sobrevivió", elapsed)
+	}
+	if code == 0 {
+		t.Fatal("exit 0 con kill")
 	}
 }

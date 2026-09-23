@@ -6,11 +6,15 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"syscall"
+	"time"
 
 	"hush/internal/redact"
 )
 
 const captureLimit = 1 << 20
+
+const killGrace = 2 * time.Second
 
 func Run(ctx context.Context, extra map[string]string, argv []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	env := os.Environ()
@@ -41,6 +45,11 @@ func execute(ctx context.Context, env []string, secrets []string, argv []string,
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	cmd.Env = env
 	cmd.Stdin = stdin
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error {
+		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+	}
+	cmd.WaitDelay = killGrace
 	var outB, errB cappedBuffer
 	cmd.Stdout = &outB
 	cmd.Stderr = &errB

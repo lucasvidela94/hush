@@ -1,4 +1,4 @@
 #!/bin/sh
 set -e
-make fmt vet test >/dev/null
+make generate fmt vet test >/dev/null
 echo "pre-commit ok"

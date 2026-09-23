@@ -1,9 +1,12 @@
 BIN := hush
 PKG := ./...
 
-.PHONY: check fmt vet lint test build hook
+.PHONY: check fmt vet lint test build hook generate
 
-check: fmt vet test build
+check: generate fmt vet test build
+
+generate:
+	go generate ./...
 
 fmt:
 	gofmt -l .

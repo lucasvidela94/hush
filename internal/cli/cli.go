@@ -1,14 +1,18 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"strings"
 
+	"hush/internal/mcp"
 	"hush/internal/runner"
 	"hush/internal/secret"
+	"hush/internal/setup"
+	"hush/internal/update"
 	"hush/internal/vault"
 )
 
@@ -18,6 +22,8 @@ const (
 	Usage   = 2
 	Missing = 3
 )
+
+var Version = "dev"
 
 func Run(argv []string, store vault.Store, stdin *os.File, stdout, stderr io.Writer) int {
 	if len(argv) == 0 {
@@ -35,6 +41,17 @@ func Run(argv []string, store vault.Store, stdin *os.File, stdout, stderr io.Wri
 		return run(argv[1:], store, stdin, stdout, stderr)
 	case "stdin":
 		return pipeIn(argv[1:], store, stdout, stderr)
+	case "serve":
+		return serve(store, stderr)
+	case "setup":
+		return runSetup(stdout, stderr)
+	case "update":
+		return runUpdate(stdout, stderr)
+	case "status":
+		return status(store, stdout, stderr)
+	case "version", "--version", "-v":
+		fmt.Fprintf(stdout, "hush %s\n", Version)
+		return OK
 	default:
 		printUsage(stdout)
 		return Usage
@@ -174,8 +191,63 @@ func printUsage(w io.Writer) {
   hush list                        solo nombres
   hush run [--only A,B] -- cmd...  inyecta en hijo + redacta salida
   hush stdin NOMBRE -- cmd...      escribe valor al stdin del hijo
+  hush serve                       servidor MCP stdio (harness agnóstico)
+  hush setup                       instala el skill en tus harnesses
+  hush update                      self-update desde GitHub releases
+  hush status                      versión + vault + skill
+  hush version                     versión
 
 ej:
   openssl rand -hex 24 | hush set WHATSAPP_VERIFY_TOKEN
   hush stdin WHATSAPP_VERIFY_TOKEN -- npx wrangler secret put WHATSAPP_VERIFY_TOKEN`)
+}
+
+func serve(store vault.Store, stderr io.Writer) int {
+	if err := mcp.NewServer(store).ServeStdio(); err != nil {
+		fmt.Fprintf(stderr, "hush: servidor MCP: %s\n", err)
+		return Failed
+	}
+	return OK
+}
+
+func runSetup(stdout, stderr io.Writer) int {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		fmt.Fprintln(stderr, "hush: sin HOME")
+		return Failed
+	}
+	results, err := setup.Apply(home)
+	if err != nil {
+		fmt.Fprintf(stderr, "hush: setup: %s\n", err)
+		return Failed
+	}
+	for _, r := range results {
+		fmt.Fprintf(stdout, "hush: skill %s → %s (%s)\n", r.Harness, r.Path, r.State)
+	}
+	fmt.Fprintln(stdout)
+	fmt.Fprint(stdout, setup.Wiring())
+	return OK
+}
+
+func runUpdate(stdout, stderr io.Writer) int {
+	result, err := update.NewSelfUpdater().Run(context.Background(), Version)
+	if err != nil {
+		fmt.Fprintf(stderr, "hush: update: %s\n", err)
+		return Failed
+	}
+	fmt.Fprintln(stdout, result.Message)
+	if result.Updated {
+		fmt.Fprintln(stdout, "Reiniciá tu harness para usar la nueva versión.")
+	}
+	return OK
+}
+
+func status(store vault.Store, stdout, stderr io.Writer) int {
+	values, err := store.Load()
+	if err != nil {
+		fmt.Fprintln(stderr, "hush: no se pudo leer el vault")
+		return Failed
+	}
+	fmt.Fprintf(stdout, "hush %s\nvault: %s (%d secretos)\n", Version, store.Path(), len(values))
+	return OK
 }

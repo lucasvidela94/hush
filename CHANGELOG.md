@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.2.1
+
+- Tests del camino feliz de `export` y lectura por pipe (guard inyectable).
+- README con tabla comparativa vs alternativas.
+
 ## v0.2.0
 
 - `hush export [NOMBRES]` — muestra valores solo en terminal real (por pipe se niega).

@@ -141,9 +141,8 @@ jobs:
             echo "sin HUSH_SIGN_PRIV: release sin firma (update avisará)"
             exit 0
           fi
-          cd artifacts
-          HUSH_SIGN_PRIV="$HUSH_SIGN_PRIV" go run ./cmd/hush-sign sign checksums.txt > checksums.txt.sig
-          cat checksums.txt.sig
+          HUSH_SIGN_PRIV="$HUSH_SIGN_PRIV" go run ./cmd/hush-sign sign artifacts/checksums.txt > artifacts/checksums.txt.sig
+          cat artifacts/checksums.txt.sig
 
       - name: Create release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2

@@ -25,6 +25,12 @@ func (s Store) Path() string {
 	return filepath.Join(s.dir, "vault")
 }
 
+func (s Store) Dir() string {
+	return s.dir
+}
+
+const header = "# hush-vault v2"
+
 func (s Store) Load() (map[string]string, error) {
 	out := map[string]string{}
 	if isSymlink(s.Path()) {
@@ -37,7 +43,13 @@ func (s Store) Load() (map[string]string, error) {
 		}
 		return nil, err
 	}
-	for _, line := range strings.Split(string(raw), "\n") {
+	v2 := false
+	lines := strings.Split(string(raw), "\n")
+	if len(lines) > 0 && lines[0] == header {
+		v2 = true
+		lines = lines[1:]
+	}
+	for _, line := range lines {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
@@ -45,7 +57,10 @@ func (s Store) Load() (map[string]string, error) {
 		if !ok {
 			continue
 		}
-		out[strings.TrimSpace(k)] = unescape(v)
+		if v2 {
+			v = unescape(v)
+		}
+		out[strings.TrimSpace(k)] = v
 	}
 	return out, nil
 }
@@ -66,6 +81,7 @@ func (s Store) Save(values map[string]string) error {
 	}
 	sort.Strings(keys)
 	var b strings.Builder
+	b.WriteString(header + "\n")
 	for _, k := range keys {
 		b.WriteString(k + "=" + escape(values[k]) + "\n")
 	}

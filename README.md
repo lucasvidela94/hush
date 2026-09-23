@@ -58,6 +58,16 @@ hush export META_APP_SECRET  # prints one
 by piping (a pty is not proof of a human — see `SECURITY.md`). Back up the file itself (`cp ~/.hush/vault …`) for disaster
 recovery; wipe with `rm -rf ~/.hush`. See `SECURITY.md` and `PRIVACY.md`.
 
+## Notes
+
+- Linux and macOS only (amd64/arm64). No Windows (TTY model).
+- `hush_run` over MCP asks for human confirmation on every call and times
+  out slow commands at 5 minutes. Long-lived processes belong in your
+  terminal, not in the agent.
+- Elicitation (native secret prompts) verified on Claude Code; other
+  harnesses fall back to `hush set` in your terminal. `hush doctor` tells you
+  where you stand.
+
 ## Docs
 
 `SECURITY.md` (threat model) · `PRIVACY.md` · `CONTRIBUTING.md` · `CHANGELOG.md`

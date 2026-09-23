@@ -1,0 +1,14 @@
+---
+name: Feature request
+description: Suggest something for hush
+body:
+  - type: textarea
+    attributes:
+      label: Problem
+      description: What hurts today, with an example.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Proposal
+      description: How it should behave, including security implications.

@@ -1,0 +1,20 @@
+---
+name: Bug report
+description: Report something broken (no real secrets, use REDACTED)
+body:
+  - type: textarea
+    attributes:
+      label: What happened
+      description: Command, expected vs actual output (redact values).
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Version
+      description: hush version output.
+  - type: textarea
+    attributes:
+      label: hush doctor
+      description: Paste the full output of hush doctor.
+    validations:
+      required: true

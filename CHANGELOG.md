@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.5.3
+
+- `hush doctor`: chequeo de binario, vault, skills y registro MCP.
+- Templates de issues/PRs, notas de plataforma en README.
+
 ## v0.5.2
 
 - Redacción: wraps con padding, `token=`/`%` con runs aislados, base64 del

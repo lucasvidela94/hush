@@ -54,6 +54,8 @@ func Run(argv []string, store vault.Store, stdin *os.File, stdout, stderr io.Wri
 		return runUpdate(stdout, stderr)
 	case "status":
 		return status(store, stdout, stderr)
+	case "doctor":
+		return doctor(stdout)
 	case "version", "--version", "-v":
 		fmt.Fprintf(stdout, "hush %s\n", Version)
 		return OK
@@ -230,6 +232,7 @@ func printUsage(w io.Writer) {
   hush setup                       instala el skill en tus harnesses
   hush update                      actualiza hush
   hush status                      versión + vault + skills
+  hush doctor                       chequeo de instalación y configuración
   hush version                     versión
   hush help [COMANDO]              ayuda de un comando
 
@@ -249,6 +252,7 @@ var helpText = map[string]string{
 	"setup":  "uso: hush setup [--yes]\nCon terminal: wizard que detecta tus harnesses y te propone registrar el servidor MCP (con backup). Sin terminal o con --yes: instala skills y muestra cómo conectar a mano.",
 	"update": "uso: hush update\nDescarga la última versión desde GitHub releases (verificada por checksum) y la instala.",
 	"status": "uso: hush status\nMuestra versión, ubicación del vault y skills instalados.",
+	"doctor": "uso: hush doctor\nChequea binario, vault, skills y registro MCP. Exit 0 si está todo bien.",
 }
 
 func help(argv []string, stdout io.Writer) int {
@@ -344,6 +348,15 @@ func status(store vault.Store, stdout, stderr io.Writer) int {
 	}
 	fmt.Fprintf(stdout, "skills: %d/%d harnesses\n", ok, len(targets))
 	return OK
+}
+
+func doctor(stdout io.Writer) int {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		fmt.Fprintln(stdout, "hush: sin HOME")
+		return Failed
+	}
+	return setup.Doctor(home, vault.Default(), Version, commandPath(), stdout)
 }
 
 func exportSecrets(argv []string, store vault.Store, stdout, stderr io.Writer, allow func(io.Writer) bool) int {

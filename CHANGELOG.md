@@ -1,17 +1,23 @@
 # Changelog
 
+## v0.2.0
+
+- `hush export [NOMBRES]` — muestra valores solo en terminal real (por pipe se niega).
+- Wizard `hush setup` — detecta claude/opencode/cursor/codex y propone registrar el MCP con confirmación y backup.
+- `hush help [COMANDO]`, errores que nombran el problema, `status` con skills reales.
+- Vault valida nombres y valores (rechaza multilínea y `=`).
+- `install.js` verifica checksum también en el fallback de descarga.
+
 ## v0.1.1
 
-- Fix: drop `bin` from package.json (binary is installed by `install.js`).
-- Docs: English README, `--allow-scripts` install flag.
-- CI: OIDC-primary npm publish with token fallback, `workflow_dispatch`.
+- Fix: sin `bin` en package.json (el binario lo instala `install.js`).
+- Docs: README en inglés, flag `--allow-scripts`.
+- CI: publish npm por OIDC con fallback a token, `workflow_dispatch`.
 
 ## v0.1.0
 
-- Vault (`~/.hush/vault`, `0600`), TTY/pipe `set`, names-only `check`/`list`.
-- `run`/`stdin` injection with `[REDACTED]` output filtering.
-- MCP server (`serve`): `hush_check`, `hush_list`, `hush_need` (elicitation),
-  `hush_run`.
-- `setup` deploys the skill to claude/codex/cursor/agents harnesses.
-- `update` self-update from GitHub releases (sha256-verified).
-- npm package `hush-secrets` with bundled platform binaries.
+- Vault (`~/.hush/vault`, `0600`), `set` por TTY/pipe, `check`/`list` solo nombres.
+- `run`/`stdin` con inyección y salida redactada a `[REDACTED]`.
+- MCP (`serve`): `hush_check`, `hush_list`, `hush_need` (elicitation), `hush_run`.
+- `setup` instala el skill; `update` self-update verificado por checksum.
+- Paquete npm `hush-secrets` con binarios por plataforma.

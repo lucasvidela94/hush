@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -70,6 +71,31 @@ func TestExportRechazaSinTTY(t *testing.T) {
 func TestCanRevealRechazaBuffer(t *testing.T) {
 	if canReveal(&bytes.Buffer{}) {
 		t.Fatal("buffer no es terminal")
+	}
+}
+
+func TestExportMuestraValores(t *testing.T) {
+	store := testStore(t, map[string]string{"B": "dos", "A": "uno"})
+	var out, errB bytes.Buffer
+	allow := func(io.Writer) bool { return true }
+	if code := exportSecrets([]string{"A", "B"}, store, &out, &errB, allow); code != OK {
+		t.Fatalf("exit %d", code)
+	}
+	got := out.String()
+	if !strings.Contains(got, "A=uno\n") || !strings.Contains(got, "B=dos\n") {
+		t.Fatalf("incompleto: %q", got)
+	}
+}
+
+func TestExportNombreAusente(t *testing.T) {
+	store := testStore(t, map[string]string{"A": "uno"})
+	var out, errB bytes.Buffer
+	allow := func(io.Writer) bool { return true }
+	if code := exportSecrets([]string{"A", "ZZZ"}, store, &out, &errB, allow); code != Missing {
+		t.Fatalf("exit %d", code)
+	}
+	if !strings.Contains(out.String(), "A=uno\n") {
+		t.Fatalf("no imprimió el presente: %q", out.String())
 	}
 }
 

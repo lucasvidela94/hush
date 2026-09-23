@@ -43,7 +43,7 @@ func Run(argv []string, store vault.Store, stdin *os.File, stdout, stderr io.Wri
 	case "stdin":
 		return pipeIn(argv[1:], store, stdout, stderr)
 	case "export":
-		return exportSecrets(argv[1:], store, stdout, stderr)
+		return exportSecrets(argv[1:], store, stdout, stderr, canReveal)
 	case "serve":
 		return serve(store, stderr)
 	case "setup":
@@ -326,8 +326,8 @@ func status(store vault.Store, stdout, stderr io.Writer) int {
 	return OK
 }
 
-func exportSecrets(argv []string, store vault.Store, stdout, stderr io.Writer) int {
-	if !canReveal(stdout) {
+func exportSecrets(argv []string, store vault.Store, stdout, stderr io.Writer, allow func(io.Writer) bool) int {
+	if !allow(stdout) {
 		fmt.Fprintln(stderr, "hush: export solo en terminal real (stdout no es TTY). Así ningún harness puede capturar valores.")
 		return Failed
 	}

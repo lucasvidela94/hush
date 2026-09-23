@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.5.0
+
+- `hush_run` sin bypass: eliminado `confirm`, sin elicitation no ejecuta.
+- Firma obligatoria en `update` (fail-closed) + lista de claves para rotar.
+- Redacción por decodificación real (Basic auth, wraps, base64url, doble
+  base64) y normalización total en el chequeo fail-closed.
+- `hush set` restaura el eco ante Ctrl-C.
+- Releases con environment `release` (aprobación) + attestations.
+
 ## v0.4.3
 
 - Releases firmados automáticamente en CI (clave en secret `HUSH_SIGN_PRIV`).

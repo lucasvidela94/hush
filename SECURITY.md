@@ -39,14 +39,25 @@ Concretely, hush:
 - **Elicited values and the MCP client.** Values typed into a harness prompt
   travel through the client app (never the model in compliant clients).
   Maximum paranoia: provision with `hush set` in your own terminal.
-- **Self-update supply chain.** `hush update` verifies the sha256 checksum,
-  but checksum and binary travel the same channel (GitHub releases). A
-  compromised release would verify cleanly. Pinned, signed releases are
-  future work.
-- **Concurrent writes.** Two simultaneous `set`/`need` calls can lose one
-  value (last-writer-wins). Re-run `set` if a value goes missing.
+- **Self-update supply chain.** `hush update` exige `checksums.txt.sig`
+  firmado por una clave embebida (lista para rotación). Sin firma válida no
+  instala nada. La clave privada vive en un secret de CI y los releases pasan
+  por environment con aprobación. Modelo completo abajo.
+- **Concurrent writes.** Protegidos con `flock` en `set`/`need`.
 - **Already-pasted secrets.** Nothing removes a value from a chat transcript.
   Rotate it at the source.
+
+## Signing and rotation model
+
+- La clave privada de firmas solo existe en dos lugares: offline con el
+  maintainer y en el secret `HUSH_SIGN_PRIV` de CI. CI firma automáticamente
+  cada release; sin secreto, el release falla (fail-closed).
+- `internal/update/pubkey.go` embebe la lista de claves públicas aceptadas.
+- Rotación: agregar la nueva clave a la lista, publicar un release (migra a
+  todos los que actualizan), y después rotar el secret. Nunca reutilizar una
+  clave expuesta en un transcript.
+- Binarios v0.4.1 llevan la clave vieja (privada perdida): no verifican
+  firmas nuevas. Reinstalar por npm (`npm i -g hush-secrets`).
 
 ## Reporting
 

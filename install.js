@@ -145,7 +145,7 @@ async function verifyChecksum(assetName, compressed) {
 }
 
 function runSetup() {  try {
-    const out = execFileSync(BIN_PATH, ["setup"], { encoding: "utf-8" });
+    const out = execFileSync(BIN_PATH, ["setup", "--yes"], { encoding: "utf-8" });
     console.log(out);
   } catch (err) {
     console.error(`  ❌ hush setup failed: ${err.message}`);

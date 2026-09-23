@@ -47,7 +47,7 @@ func Run(argv []string, store vault.Store, stdin *os.File, stdout, stderr io.Wri
 	case "serve":
 		return serve(store, stderr)
 	case "setup":
-		return runSetup(stdout, stderr)
+		return runSetup(argv[1:], stdin, stdout, stderr)
 	case "update":
 		return runUpdate(stdout, stderr)
 	case "status":
@@ -226,7 +226,7 @@ var helpText = map[string]string{
 	"stdin":  "uso: hush stdin NOMBRE -- comando...\nLe escribe el valor al stdin del comando. Para programas que piden el secreto por consola.\nej: hush stdin MI_TOKEN -- npx wrangler secret put MI_TOKEN",
 	"export": "uso: hush export [NOMBRES...]\nMuestra valores en TU terminal. Se niega si la salida no es una terminal (así ningún agente puede capturarlos).",
 	"serve":  "uso: hush serve\nServidor MCP (stdio) para tu harness de IA. Registralo con: hush setup",
-	"setup":  "uso: hush setup\nInstala el skill en tus harnesses (claude, codex, cursor, agents) y muestra cómo conectar el servidor MCP.",
+	"setup":  "uso: hush setup [--yes]\nCon terminal: wizard que detecta tus harnesses y te propone registrar el servidor MCP (con backup). Sin terminal o con --yes: instala skills y muestra cómo conectar a mano.",
 	"update": "uso: hush update\nDescarga la última versión desde GitHub releases (verificada por checksum) y la instala.",
 	"status": "uso: hush status\nMuestra versión, ubicación del vault y skills instalados.",
 }
@@ -253,12 +253,24 @@ func serve(store vault.Store, stderr io.Writer) int {
 	return OK
 }
 
-func runSetup(stdout, stderr io.Writer) int {
+func runSetup(argv []string, stdin *os.File, stdout, stderr io.Writer) int {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		fmt.Fprintln(stderr, "hush: sin HOME")
 		return Failed
 	}
+	for _, a := range argv {
+		if a == "--yes" {
+			return setupPlain(home, stdout, stderr)
+		}
+	}
+	if setup.IsTTY(stdin) {
+		return setup.Wizard(home, stdin, stdout, commandPath())
+	}
+	return setupPlain(home, stdout, stderr)
+}
+
+func setupPlain(home string, stdout, stderr io.Writer) int {
 	results, err := setup.Apply(home)
 	if err != nil {
 		fmt.Fprintf(stderr, "hush: setup: %s\n", err)
@@ -270,6 +282,13 @@ func runSetup(stdout, stderr io.Writer) int {
 	fmt.Fprintln(stdout)
 	fmt.Fprint(stdout, setup.Wiring())
 	return OK
+}
+
+func commandPath() string {
+	if exe, err := os.Executable(); err == nil {
+		return exe
+	}
+	return "hush"
 }
 
 func runUpdate(stdout, stderr io.Writer) int {

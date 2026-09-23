@@ -2,6 +2,7 @@ package runner
 
 import (
 	"bytes"
+	"context"
 	"strings"
 	"testing"
 )
@@ -9,6 +10,7 @@ import (
 func TestRunRedactaEnv(t *testing.T) {
 	var out, errB bytes.Buffer
 	code := Run(
+		context.Background(),
 		map[string]string{"HUSH_T": "valor-ultrasecreto"},
 		[]string{"sh", "-c", "echo la key es $HUSH_T"},
 		nil, &out, &errB,
@@ -26,7 +28,7 @@ func TestRunRedactaEnv(t *testing.T) {
 
 func TestPipeRedactaEco(t *testing.T) {
 	var out, errB bytes.Buffer
-	code := Pipe("valor-ultrasecreto", []string{"cat"}, &out, &errB)
+	code := Pipe(context.Background(), "valor-ultrasecreto", []string{"cat"}, &out, &errB)
 	if code != 0 {
 		t.Fatalf("exit %d", code)
 	}
@@ -37,7 +39,7 @@ func TestPipeRedactaEco(t *testing.T) {
 
 func TestRunPropagaExit(t *testing.T) {
 	var out, errB bytes.Buffer
-	code := Run(nil, []string{"sh", "-c", "exit 7"}, nil, &out, &errB)
+	code := Run(context.Background(), nil, []string{"sh", "-c", "exit 7"}, nil, &out, &errB)
 	if code != 7 {
 		t.Fatalf("exit %d, quiero 7", code)
 	}

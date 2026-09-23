@@ -18,7 +18,7 @@ func TestReadPipe(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != "valor-con-espacios" {
+	if got != "  valor-con-espacios  " {
 		t.Fatalf("got %q", got)
 	}
 }

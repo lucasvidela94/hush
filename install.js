@@ -36,11 +36,15 @@ function platform() {
   process.exit(1);
 }
 
-function download(url, dest) {
+function download(url, dest, redirects = 0) {
   return new Promise((resolve, reject) => {
     const { protocol } = new URL(url);
     if (protocol !== "https:") {
       reject(new Error(`refusing non-https URL: ${url}`));
+      return;
+    }
+    if (redirects > 5) {
+      reject(new Error(`too many redirects: ${url}`));
       return;
     }
     const https = require("https");
@@ -50,7 +54,7 @@ function download(url, dest) {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
           file.close();
           fs.rmSync(dest, { force: true });
-          return download(res.headers.location, dest).then(resolve).catch(reject);
+          return download(res.headers.location, dest, redirects + 1).then(resolve).catch(reject);
         }
         if (res.statusCode !== 200) {
           file.close();
@@ -118,36 +122,42 @@ async function ensureBinary() {
 async function downloadRelease(assetName) {
   const { randomBytes } = require("crypto");
   const url = `${REPO}/releases/download/${VERSION}/${assetName}`;
-  const dest = path.join(os.tmpdir(), `hush-${process.pid}-${randomBytes(4).toString("hex")}.gz`);
+  const workdir = fs.mkdtempSync(path.join(os.tmpdir(), "hush-"));
+  const dest = path.join(workdir, assetName);
   console.log(`  ⬇ Downloading ${assetName}...`);
   try {
     await download(url, dest);
     const compressed = fs.readFileSync(dest);
-    fs.unlinkSync(dest);
     await verifyChecksum(assetName, compressed);
     return compressed;
   } catch (err) {
     console.error(`  ❌ Binary download failed: ${err.message}`);
     console.error("     Build from source instead: git clone ... && go build -o hush ./cmd/hush");
     process.exit(1);
+  } finally {
+    fs.rmSync(workdir, { recursive: true, force: true });
   }
 }
 
 async function verifyChecksum(assetName, compressed) {
-  const { createHash, randomBytes } = require("crypto");
+  const { createHash } = require("crypto");
   const sumsUrl = `${REPO}/releases/download/${VERSION}/checksums.txt`;
-  const sumsDest = path.join(os.tmpdir(), `hush-sums-${process.pid}-${randomBytes(4).toString("hex")}.txt`);
-  await download(sumsUrl, sumsDest);
-  const sums = fs.readFileSync(sumsDest, "utf-8");
-  fs.unlinkSync(sumsDest);
-  const line = sums.split("\n").find((l) => l.trim().endsWith(`  ${assetName}`));
-  if (!line) throw new Error(`checksum for ${assetName} not found`);
-  const expected = line.split(/\s+/)[0];
-  const actual = createHash("sha256").update(compressed).digest("hex");
-  if (actual.toLowerCase() !== expected.toLowerCase()) {
-    throw new Error(`checksum mismatch for ${assetName}`);
+  const workdir = fs.mkdtempSync(path.join(os.tmpdir(), "hush-sums-"));
+  try {
+    const sumsDest = path.join(workdir, "checksums.txt");
+    await download(sumsUrl, sumsDest);
+    const sums = fs.readFileSync(sumsDest, "utf-8");
+    const line = sums.split("\n").find((l) => l.trim().endsWith(`  ${assetName}`));
+    if (!line) throw new Error(`checksum for ${assetName} not found`);
+    const expected = line.split(/\s+/)[0];
+    const actual = createHash("sha256").update(compressed).digest("hex");
+    if (actual.toLowerCase() !== expected.toLowerCase()) {
+      throw new Error(`checksum mismatch for ${assetName}`);
+    }
+    console.log("  ✓ Checksum verified");
+  } finally {
+    fs.rmSync(workdir, { recursive: true, force: true });
   }
-  console.log("  ✓ Checksum verified");
 }
 
 function runSetup() {  try {

@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.5.1
+
+- Fix: normalizados vacíos ya no anulan salidas (guard <4 real).
+- Señales SIGTERM/SIGHUP/SIGQUIT también restauran el eco.
+- Redacción: base32, bytes decimales, stride-2, join alfabético (od/rev con
+  espacios ya no fugan).
+- Docs: modelo shell, reglas de harness recomendadas, política de output.
+
 ## v0.5.0
 
 - `hush_run` sin bypass: eliminado `confirm`, sin elicitation no ejecuta.

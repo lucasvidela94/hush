@@ -47,6 +47,34 @@ Concretely, hush:
 - **Already-pasted secrets.** Nothing removes a value from a chat transcript.
   Rotate it at the source.
 
+## Shell model: what the MCP confirm does and does not govern
+
+`hush_run` confirmation governs calls **through MCP**. It does not govern an
+agent with shell access: `hush run --all -- …`, `cat ~/.hush/vault`, or
+`hush export` under a pty run without asking. The real control there is the
+harness's own permissions. Recommended (verify syntax against your harness
+version, it changes):
+
+- Claude Code (`settings.json`): deny `Read(~/.hush/**)`, ask on
+  `Bash(hush run:*)` and `Bash(hush export:*)`.
+- Equivalent deny/ask rules exist in most harnesses for shell and file tools.
+
+This is whack-a-mole against `cat` via Bash — useful friction, not a
+boundary. The structural fix is getting the vault out of the agent's reach
+(system keychain, or a daemon + socket auth where the agent's process cannot
+read the file). That is the roadmap; hush today protects the transcript.
+
+## Output policy: why not opaque-by-default
+
+Every `hush_run` execution was approved by a human (command + secret names
+via prompt). Making output opaque by default would not stop an injected
+agent — it already passed a human gate — but would break legitimate flows
+(deploy confirmations, `wrangler` success messages). So: full output with
+layered redaction (literals, common encodings, fail-closed transform
+detection), bounded at 32 KB per call. Halves of a secret exfiltrated across
+separate calls cannot be detected statelessly; no new one-off encodings will
+be added — only generic transforms.
+
 ## Signing and rotation model
 
 - La clave privada de firmas solo existe en dos lugares: offline con el

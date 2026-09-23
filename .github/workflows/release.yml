@@ -81,6 +81,7 @@ jobs:
     name: Publish to npm
     runs-on: ubuntu-latest
     needs: [build]
+    environment: release
     permissions:
       contents: read
       id-token: write # npm Trusted Publishing (OIDC)
@@ -114,6 +115,7 @@ jobs:
     name: Create GitHub Release
     runs-on: ubuntu-latest
     needs: [build]
+    environment: release
     permissions:
       contents: write
     steps:
@@ -138,8 +140,8 @@ jobs:
           HUSH_SIGN_PRIV: ${{ secrets.HUSH_SIGN_PRIV }}
         run: |
           if [ -z "$HUSH_SIGN_PRIV" ]; then
-            echo "sin HUSH_SIGN_PRIV: release sin firma (update avisará)"
-            exit 0
+            echo "sin HUSH_SIGN_PRIV: no se puede firmar, corto el release"
+            exit 1
           fi
           HUSH_SIGN_PRIV="$HUSH_SIGN_PRIV" go run ./cmd/hush-sign sign artifacts/checksums.txt > artifacts/checksums.txt.sig
           cat artifacts/checksums.txt.sig

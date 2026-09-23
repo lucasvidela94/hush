@@ -6,21 +6,40 @@ on:
       - "v*"
   workflow_dispatch:
 
-permissions:
-  contents: write
-  id-token: write # Required for npm Trusted Publishing (OIDC)
+permissions: {}
 
 jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: "1.25"
+
+      - name: Vet and test
+        run: |
+          go generate ./...
+          go vet ./...
+          go test ./...
+
   build:
     name: Build ${{ matrix.goos }}-${{ matrix.goarch }}
     runs-on: ubuntu-latest
+    needs: [test]
+    permissions:
+      contents: read
     strategy:
       matrix:
         goos: [linux, darwin]
         goarch: [amd64, arm64]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Validate version
         run: |
@@ -33,7 +52,7 @@ jobs:
           fi
           echo "✅ Version match: v$TAG"
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: "1.25"
 
@@ -46,7 +65,7 @@ jobs:
           gzip -9 -k "hush-${{ matrix.goos }}-${{ matrix.goarch }}"
 
       - name: Upload binary artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: hush-${{ matrix.goos }}-${{ matrix.goarch }}.gz
           path: hush-${{ matrix.goos }}-${{ matrix.goarch }}.gz
@@ -55,14 +74,17 @@ jobs:
     name: Publish to npm
     runs-on: ubuntu-latest
     needs: [build]
+    permissions:
+      contents: read
+      id-token: write # npm Trusted Publishing (OIDC)
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "24"
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           path: artifacts/
 
@@ -76,16 +98,6 @@ jobs:
           cp install.js publish/
           cp uninstall.js publish/
 
-      # Fallback when npm Trusted Publishing (OIDC) is not configured yet:
-      # set the NPM_TOKEN repo secret to a granular automation token.
-      - name: npm auth (fallback token)
-        run: |
-          if [ -n "${NPM_TOKEN_FALLBACK}" ]; then
-            echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN_FALLBACK}" >> publish/.npmrc
-          fi
-        env:
-          NPM_TOKEN_FALLBACK: ${{ secrets.NPM_TOKEN }}
-
       - name: Publish to npm (OIDC)
         run: |
           cd publish
@@ -95,21 +107,23 @@ jobs:
     name: Create GitHub Release
     runs-on: ubuntu-latest
     needs: [build]
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           path: artifacts/
 
       - name: Checksums
         run: |
           cd artifacts
-          sha256sum */*.gz > checksums.txt
+          for d in */; do (cd "$d" && sha256sum *.gz); done > checksums.txt
           cat checksums.txt
 
       - name: Create release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           name: hush ${{ github.ref_name }}
           draft: false

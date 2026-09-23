@@ -21,15 +21,22 @@ import (
 
 var Repo = "lucasvidela94/hush"
 
+const githubBase = "https://github.com"
+const githubAPI = "https://api.github.com"
+
 type SelfUpdater struct {
 	HTTPClient *http.Client
 	Repo       string
+	BaseURL    string
+	APIURL     string
 }
 
 func NewSelfUpdater() *SelfUpdater {
 	return &SelfUpdater{
 		HTTPClient: &http.Client{Timeout: 60 * time.Second},
 		Repo:       Repo,
+		BaseURL:    githubBase,
+		APIURL:     githubAPI,
 	}
 }
 
@@ -133,7 +140,7 @@ func normalizeVersion(v string) string {
 }
 
 func (u *SelfUpdater) latestVersion(ctx context.Context) (string, error) {
-	url := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", u.Repo)
+	url := fmt.Sprintf("%s/repos/%s/releases/latest", u.APIURL, u.Repo)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return "", err
@@ -165,7 +172,7 @@ func (u *SelfUpdater) assetName(version string) string {
 }
 
 func (u *SelfUpdater) downloadAndVerify(ctx context.Context, version, assetName string) ([]byte, error) {
-	base := fmt.Sprintf("https://github.com/%s/releases/download/%s", u.Repo, version)
+	base := fmt.Sprintf("%s/%s/releases/download/%s", u.BaseURL, u.Repo, version)
 	archive, err := u.download(ctx, base+"/"+assetName)
 	if err != nil {
 		return nil, fmt.Errorf("download asset: %w", err)
@@ -193,7 +200,7 @@ func checksumFor(sums, assetName string) (string, error) {
 	scanner := bufio.NewScanner(strings.NewReader(sums))
 	for scanner.Scan() {
 		fields := strings.Fields(scanner.Text())
-		if len(fields) >= 2 && fields[1] == assetName {
+		if len(fields) >= 2 && (fields[1] == assetName || filepath.Base(fields[1]) == assetName) {
 			return fields[0], nil
 		}
 	}

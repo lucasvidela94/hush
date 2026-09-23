@@ -10,15 +10,15 @@
     "opencode"
   ],
   "license": "MIT",
-  "author": "sombi",
+  "author": "lucasvidela94",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sombi/hush.git"
+    "url": "git+https://github.com/lucasvidela94/hush.git"
   },
   "bugs": {
-    "url": "https://github.com/sombi/hush/issues"
+    "url": "https://github.com/lucasvidela94/hush/issues"
   },
-  "homepage": "https://github.com/sombi/hush",
+  "homepage": "https://github.com/lucasvidela94/hush",
   "bin": {
     "hush": "./bin/hush"
   },

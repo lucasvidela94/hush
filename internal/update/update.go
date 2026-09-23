@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-var Repo = "sombi/hush"
+var Repo = "lucasvidela94/hush"
 
 type SelfUpdater struct {
 	HTTPClient *http.Client

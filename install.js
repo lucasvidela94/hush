@@ -91,18 +91,7 @@ async function ensureBinary() {
     console.log(`  ✓ Using bundled binary ${assetName}`);
     compressed = fs.readFileSync(localSrc);
   } else {
-    const url = `${REPO}/releases/download/${VERSION}/${assetName}`;
-    const dest = path.join(os.tmpdir(), assetName);
-    console.log(`  ⬇ Downloading ${assetName}...`);
-    try {
-      await download(url, dest);
-      compressed = fs.readFileSync(dest);
-      fs.unlinkSync(dest);
-    } catch (err) {
-      console.error(`  ❌ Binary download failed: ${err.message}`);
-      console.error("     Build from source instead: git clone ... && go build -o hush ./cmd/hush");
-      process.exit(1);
-    }
+    compressed = await downloadRelease(assetName);
   }
 
   fs.mkdirSync(BIN_DIR, { recursive: true });
@@ -121,8 +110,41 @@ async function ensureBinary() {
   console.log(`  ✓ Installed to ${BIN_PATH}`);
 }
 
-function runSetup() {
+async function downloadRelease(assetName) {
+  const url = `${REPO}/releases/download/${VERSION}/${assetName}`;
+  const dest = path.join(os.tmpdir(), assetName);
+  console.log(`  ⬇ Downloading ${assetName}...`);
   try {
+    await download(url, dest);
+    const compressed = fs.readFileSync(dest);
+    fs.unlinkSync(dest);
+    await verifyChecksum(assetName, compressed);
+    return compressed;
+  } catch (err) {
+    console.error(`  ❌ Binary download failed: ${err.message}`);
+    console.error("     Build from source instead: git clone ... && go build -o hush ./cmd/hush");
+    process.exit(1);
+  }
+}
+
+async function verifyChecksum(assetName, compressed) {
+  const { createHash } = require("crypto");
+  const sumsUrl = `${REPO}/releases/download/${VERSION}/checksums.txt`;
+  const sumsDest = path.join(os.tmpdir(), `hush-checksums-${process.pid}.txt`);
+  await download(sumsUrl, sumsDest);
+  const sums = fs.readFileSync(sumsDest, "utf-8");
+  fs.unlinkSync(sumsDest);
+  const line = sums.split("\n").find((l) => l.trim().endsWith(`  ${assetName}`));
+  if (!line) throw new Error(`checksum for ${assetName} not found`);
+  const expected = line.split(/\s+/)[0];
+  const actual = createHash("sha256").update(compressed).digest("hex");
+  if (actual.toLowerCase() !== expected.toLowerCase()) {
+    throw new Error(`checksum mismatch for ${assetName}`);
+  }
+  console.log("  ✓ Checksum verified");
+}
+
+function runSetup() {  try {
     const out = execFileSync(BIN_PATH, ["setup"], { encoding: "utf-8" });
     console.log(out);
   } catch (err) {

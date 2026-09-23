@@ -32,6 +32,9 @@ func Pipe(value string, argv []string, stdout, stderr io.Writer) int {
 }
 
 func execute(env []string, secrets []string, argv []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	if len(argv) == 0 {
+		return 1
+	}
 	cmd := exec.Command(argv[0], argv[1:]...)
 	cmd.Env = env
 	cmd.Stdin = stdin

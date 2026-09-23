@@ -47,6 +47,9 @@ func (s Store) Load() (map[string]string, error) {
 }
 
 func (s Store) Save(values map[string]string) error {
+	if err := Validate(values); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(s.dir, 0o700); err != nil {
 		return err
 	}

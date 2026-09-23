@@ -41,6 +41,8 @@ func Run(argv []string, store vault.Store, stdin *os.File, stdout, stderr io.Wri
 		return run(argv[1:], store, stdin, stdout, stderr)
 	case "stdin":
 		return pipeIn(argv[1:], store, stdout, stderr)
+	case "export":
+		return exportSecrets(argv[1:], store, stdout, stderr)
 	case "serve":
 		return serve(store, stderr)
 	case "setup":
@@ -75,7 +77,7 @@ func set(argv []string, store vault.Store, stdin *os.File, stdout io.Writer) int
 	}
 	values[argv[0]] = value
 	if err := store.Save(values); err != nil {
-		fmt.Fprintln(stdout, "hush: no se pudo guardar")
+		fmt.Fprintf(stdout, "hush: no se pudo guardar: %s\n", err)
 		return Failed
 	}
 	fmt.Fprintf(stdout, "hush: %s guardado (0600)\n", argv[0])
@@ -191,6 +193,7 @@ func printUsage(w io.Writer) {
   hush list                        solo nombres
   hush run [--only A,B] -- cmd...  inyecta en hijo + redacta salida
   hush stdin NOMBRE -- cmd...      escribe valor al stdin del hijo
+  hush export [NOMBRES...]         muestra valores SOLO en terminal real
   hush serve                       servidor MCP stdio (harness agnóstico)
   hush setup                       instala el skill en tus harnesses
   hush update                      self-update desde GitHub releases
@@ -250,4 +253,43 @@ func status(store vault.Store, stdout, stderr io.Writer) int {
 	}
 	fmt.Fprintf(stdout, "hush %s\nvault: %s (%d secretos)\n", Version, store.Path(), len(values))
 	return OK
+}
+
+func exportSecrets(argv []string, store vault.Store, stdout, stderr io.Writer) int {
+	if !canReveal(stdout) {
+		fmt.Fprintln(stderr, "hush: export solo en terminal real (stdout no es TTY). Así ningún harness puede capturar valores.")
+		return Failed
+	}
+	values, err := store.Load()
+	if err != nil {
+		fmt.Fprintln(stderr, "hush: no se pudo leer el vault")
+		return Failed
+	}
+	names := argv
+	if len(names) == 0 {
+		for k := range values {
+			names = append(names, k)
+		}
+	}
+	for _, n := range names {
+		v, ok := values[n]
+		if !ok {
+			fmt.Fprintf(stderr, "hush: falta %s\n", n)
+			return Missing
+		}
+		fmt.Fprintf(stdout, "%s=%s\n", n, v)
+	}
+	return OK
+}
+
+func canReveal(w io.Writer) bool {
+	f, ok := w.(*os.File)
+	if !ok {
+		return false
+	}
+	fi, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	return fi.Mode()&os.ModeCharDevice != 0
 }

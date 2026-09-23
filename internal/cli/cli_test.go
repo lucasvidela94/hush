@@ -31,18 +31,18 @@ func TestSetRechazaNombreInvalido(t *testing.T) {
 	}
 }
 
-func TestSetRechazaMultilinea(t *testing.T) {
+func TestSetAceptaMultilinea(t *testing.T) {
 	store := testStore(t, nil)
 	r, w, _ := os.Pipe()
 	_, _ = w.WriteString("uno\ndos")
 	_ = w.Close()
 	var out bytes.Buffer
-	if code := Run([]string{"set", "M"}, store, r, &out, &out); code == OK {
-		t.Fatal("aceptó valor multilínea")
+	if code := Run([]string{"set", "M"}, store, r, &out, &out); code != OK {
+		t.Fatalf("exit %d", code)
 	}
 	values, _ := store.Load()
-	if len(values) != 0 {
-		t.Fatalf("vault corrupto: %v", values)
+	if values["M"] != "uno\ndos" {
+		t.Fatalf("roundtrip roto: %q", values["M"])
 	}
 }
 
@@ -123,6 +123,14 @@ func TestRunOnlySinValorEsUso(t *testing.T) {
 	var out, errB bytes.Buffer
 	if code := Run([]string{"run", "--only"}, store, nil, &out, &errB); code != Usage {
 		t.Fatalf("exit %d", code)
+	}
+}
+
+func TestRunSinOnlyNiAllEsUso(t *testing.T) {
+	store := testStore(t, map[string]string{"A": "uno"})
+	var out, errB bytes.Buffer
+	if code := Run([]string{"run", "--", "echo", "hola"}, store, nil, &out, &errB); code != Usage {
+		t.Fatalf("exit %d, inyectó todo por defecto", code)
 	}
 }
 

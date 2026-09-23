@@ -115,6 +115,37 @@ func TestNeedSinSoporteInteractivo(t *testing.T) {
 	}
 }
 
+func TestRunExigeOnly(t *testing.T) {
+	store := vault.New(t.TempDir())
+	if err := store.Save(map[string]string{"T": "token-ultrasecreto"}); err != nil {
+		t.Fatal(err)
+	}
+	s := testServer(store, nil)
+	res, err := s.handleRun(context.Background(), callRequest(map[string]any{
+		"command": []any{"sh", "-c", "echo hola"},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res.IsError {
+		t.Fatal("inyectó todo por defecto")
+	}
+}
+
+func TestNeedRechazaNombreRaro(t *testing.T) {
+	store := vault.New(t.TempDir())
+	s := testServer(store, nil)
+	for _, name := range []string{"a-b", "con espacios", "../../../x", ""} {
+		res, err := s.handleNeed(context.Background(), callRequest(map[string]any{"name": name}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !res.IsError {
+			t.Fatalf("aceptó %q", name)
+		}
+	}
+}
+
 func TestRunRedacta(t *testing.T) {
 	store := vault.New(t.TempDir())
 	if err := store.Save(map[string]string{"T": "token-ultrasecreto"}); err != nil {

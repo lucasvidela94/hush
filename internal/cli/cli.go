@@ -147,22 +147,30 @@ func list(store vault.Store, stdout, stderr io.Writer) int {
 
 func run(argv []string, store vault.Store, stdin *os.File, stdout, stderr io.Writer) int {
 	only := map[string]bool{}
+	all := false
 	rest := argv
 	if len(argv) >= 1 && argv[0] == "--only" {
 		if len(argv) < 3 {
-			fmt.Fprintln(stderr, "uso: hush run [--only A,B] -- comando...")
+			fmt.Fprintln(stderr, "uso: hush run [--only A,B | --all] -- comando...")
 			return Usage
 		}
 		for _, k := range strings.Split(argv[1], ",") {
 			only[strings.TrimSpace(k)] = true
 		}
 		rest = argv[2:]
+	} else if len(argv) >= 1 && argv[0] == "--all" {
+		all = true
+		rest = argv[1:]
 	}
 	if len(rest) > 0 && rest[0] == "--" {
 		rest = rest[1:]
 	}
 	if len(rest) == 0 {
-		fmt.Fprintln(stderr, "uso: hush run [--only A,B] -- comando...")
+		fmt.Fprintln(stderr, "uso: hush run [--only A,B | --all] -- comando...")
+		return Usage
+	}
+	if !all && len(only) == 0 {
+		fmt.Fprintln(stderr, "hush: run exige --only A,B o --all explícito (no inyecto todo por defecto)")
 		return Usage
 	}
 	values, err := store.Load()
@@ -172,11 +180,11 @@ func run(argv []string, store vault.Store, stdin *os.File, stdout, stderr io.Wri
 	}
 	extra := map[string]string{}
 	for k, v := range values {
-		if len(only) == 0 || only[k] {
+		if all || only[k] {
 			extra[k] = v
 		}
 	}
-	return runner.Run(extra, rest, stdin, stdout, stderr)
+	return runner.Run(context.Background(), extra, rest, stdin, stdout, stderr)
 }
 
 func pipeIn(argv []string, store vault.Store, stdout, stderr io.Writer) int {
@@ -194,7 +202,7 @@ func pipeIn(argv []string, store vault.Store, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "hush: falta %s → pedí al humano: hush set %s\n", argv[0], argv[0])
 		return Missing
 	}
-	return runner.Pipe(value, argv[2:], stdout, stderr)
+	return runner.Pipe(context.Background(), value, argv[2:], stdout, stderr)
 }
 
 func printUsage(w io.Writer) {
@@ -203,7 +211,7 @@ func printUsage(w io.Writer) {
   hush set NOMBRE                  guarda un valor (te lo pide sin mostrarlo)
   hush check NOMBRE...             ¿están guardados? (solo nombres)
   hush list                        qué nombres hay guardados
-  hush run [--only A,B] -- cmd...  corre un comando con los valores inyectados
+  hush run [--only A,B | --all] -- cmd...  corre un comando con los valores inyectados
   hush stdin NOMBRE -- cmd...      le escribe un valor al stdin del comando
   hush export [NOMBRES...]         muestra valores SOLO en terminal real
   hush serve                       servidor MCP para tu harness de IA
@@ -222,7 +230,7 @@ var helpText = map[string]string{
 	"set":    "uso: hush set NOMBRE\nej: openssl rand -hex 24 | hush set MI_TOKEN\nGuarda un valor leyéndolo de tu terminal (sin mostrarlo) o de un pipe.",
 	"check":  "uso: hush check [--json] NOMBRE...\nDice qué nombres están guardados y cuáles faltan. Nunca muestra valores.",
 	"list":   "uso: hush list\nLista los nombres guardados. Nunca muestra valores.",
-	"run":    "uso: hush run [--only A,B] -- comando...\nCorre el comando con los secretos como variables de entorno y tapa los valores en la salida.\nej: hush run --only API_KEY -- ./deploy.sh",
+	"run":    "uso: hush run [--only A,B | --all] -- comando...\nCorre el comando solo con los secretos indicados (todos solo con --all explícito) y tapa los valores en la salida.\nej: hush run --only API_KEY -- ./deploy.sh",
 	"stdin":  "uso: hush stdin NOMBRE -- comando...\nLe escribe el valor al stdin del comando. Para programas que piden el secreto por consola.\nej: hush stdin MI_TOKEN -- npx wrangler secret put MI_TOKEN",
 	"export": "uso: hush export [NOMBRES...]\nMuestra valores en TU terminal. Se niega si la salida no es una terminal (así ningún agente puede capturarlos).",
 	"serve":  "uso: hush serve\nServidor MCP (stdio) para tu harness de IA. Registralo con: hush setup",

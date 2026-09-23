@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -11,6 +12,10 @@ import (
 )
 
 const maxOutput = 32 * 1024
+
+const maxHint = 200
+
+var validName = regexp.MustCompile(`^[A-Z_][A-Z0-9_]*$`)
 
 func stringArg(args map[string]any, name string) (string, error) {
 	v, ok := args[name]
@@ -93,6 +98,9 @@ func (s *Server) handleNeed(ctx context.Context, request mcp.CallToolRequest) (*
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
 	}
+	if !validName.MatchString(name) {
+		return mcp.NewToolResultError("name debe ser [A-Z_][A-Z0-9_]*"), nil
+	}
 	values, err := s.store.Load()
 	if err != nil {
 		return mcp.NewToolResultError("hush: no se pudo leer el vault"), nil
@@ -102,6 +110,15 @@ func (s *Server) handleNeed(ctx context.Context, request mcp.CallToolRequest) (*
 	}
 
 	hint, _ := args["hint"].(string)
+	hint = strings.Map(func(r rune) rune {
+		if r < 32 || r == 127 {
+			return -1
+		}
+		return r
+	}, hint)
+	if len(hint) > maxHint {
+		hint = hint[:maxHint]
+	}
 	message := fmt.Sprintf("Valor para %s. Se guarda localmente y nunca entra al chat.", name)
 	if strings.TrimSpace(hint) != "" {
 		message += " Dónde encontrarlo: " + strings.TrimSpace(hint)
@@ -162,6 +179,7 @@ func (s *Server) handleRun(ctx context.Context, request mcp.CallToolRequest) (*m
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 	stdinName, _ := args["stdin_name"].(string)
+	all, _ := args["all"].(bool)
 
 	values, err := s.store.Load()
 	if err != nil {
@@ -174,9 +192,12 @@ func (s *Server) handleRun(ctx context.Context, request mcp.CallToolRequest) (*m
 	}
 	extra := map[string]string{}
 	for k, v := range values {
-		if len(restrict) == 0 || restrict[k] {
+		if all || restrict[k] {
 			extra[k] = v
 		}
+	}
+	if len(extra) == 0 && strings.TrimSpace(stdinName) == "" {
+		return mcp.NewToolResultError("hush_run exige only[] o all=true explícito (no inyecto todo por defecto)"), nil
 	}
 
 	var out, errOut limitedBuffer
@@ -186,9 +207,9 @@ func (s *Server) handleRun(ctx context.Context, request mcp.CallToolRequest) (*m
 		if !ok {
 			return mcp.NewToolResultText(fallbackMessage(strings.TrimSpace(stdinName))), nil
 		}
-		code = runner.Pipe(secret, command, &out, &errOut)
+		code = runner.Pipe(ctx, secret, command, &out, &errOut)
 	} else {
-		code = runner.Run(extra, command, nil, &out, &errOut)
+		code = runner.Run(ctx, extra, command, nil, &out, &errOut)
 	}
 
 	text := fmt.Sprintf("exit=%d\n%s", code, truncate(out.String()+errOut.String()))

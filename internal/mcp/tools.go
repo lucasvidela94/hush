@@ -31,7 +31,6 @@ func runTool() mcp.Tool {
 		mcp.WithArray("command", mcp.Description("Command and arguments to run"), mcp.Required()),
 		mcp.WithArray("only", mcp.Description("Inject only these secret names")),
 		mcp.WithBoolean("all", mcp.Description("Inject all secrets. Prefer only[] when possible.")),
-		mcp.WithBoolean("confirm", mcp.Description("Human already approved. Only for clients without prompt support.")),
 		mcp.WithString("stdin_name", mcp.Description("Write this secret to the command stdin, e.g. wrangler secret put")),
 	)
 }

@@ -27,9 +27,9 @@ hush_check(names)              → {missing[], present[]}
 hush_list()                    → nombres
 hush_need(name, hint?)         → pide el valor por prompt nativo y lo guarda.
                                  hint: dónde lo encuentra el humano.
-hush_run(command[], only[]?, all?, confirm?, stdin_name?) → ejecuta con inyección + redacción.
-                                 Deny-by-default: exige only[] o all=true, y confirmación
-                                 humana por prompt (confirm=true solo si ya aprobó y no hay prompt).
+hush_run(command[], only[]?, all?, stdin_name?) → ejecuta con inyección + redacción.
+                                 Deny-by-default: exige only[] o all=true. SIEMPRE pide
+                                 confirmación humana por prompt antes de ejecutar.
                                  stdin_name: para comandos que leen por stdin
                                  (ej: ["npx","wrangler","secret","put","X"] con stdin_name X)
 ```

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -150,15 +151,12 @@ func (s *Server) handleNeed(ctx context.Context, request mcp.CallToolRequest) (*
 	return mcp.NewToolResultText(fmt.Sprintf("hush: %s guardado", name)), nil
 }
 
-func (s *Server) confirmRun(ctx context.Context, command []string, names []string, args map[string]any) (bool, string) {
-	if confirm, _ := args["confirm"].(bool); confirm {
-		return true, ""
-	}
+func (s *Server) confirmRun(ctx context.Context, command []string, names []string) (bool, string) {
 	elicitCtx, cancel := context.WithTimeout(ctx, s.elicitTimeout)
 	defer cancel()
 	req := mcp.ElicitationRequest{
 		Params: mcp.ElicitationParams{
-			Message: fmt.Sprintf("Ejecutar `%s` con secretos [%s]?", strings.Join(command, " "), strings.Join(names, ", ")),
+			Message: fmt.Sprintf("Ejecutar %s con secretos [%s]?", formatCommand(command), strings.Join(names, ", ")),
 			RequestedSchema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
@@ -170,7 +168,7 @@ func (s *Server) confirmRun(ctx context.Context, command []string, names []strin
 	}
 	result, err := s.elicitor.RequestElicitation(elicitCtx, req)
 	if err != nil {
-		return false, "hush: sin confirmación interactiva. Si el humano ya aprobó, repetí con confirm=true; si no, corre el comando en tu terminal con hush run."
+		return false, "hush: este cliente no soporta confirmación. Corré el comando en tu terminal con hush run."
 	}
 	if result.Action != mcp.ElicitationResponseActionAccept {
 		return false, "hush: ejecución no confirmada por el humano."
@@ -180,6 +178,20 @@ func (s *Server) confirmRun(ctx context.Context, command []string, names []strin
 		return true, ""
 	}
 	return false, "hush: ejecución no confirmada por el humano."
+}
+
+func formatCommand(command []string) string {
+	quoted := make([]string, 0, len(command))
+	shown := 0
+	for _, arg := range command {
+		q := fmt.Sprintf("%q", arg)
+		if shown+len(q) > 160 {
+			return strings.Join(quoted, " ") + fmt.Sprintf(" (+%d caracteres)", len(strings.Join(command, " "))-shown)
+		}
+		quoted = append(quoted, q)
+		shown += len(q) + 1
+	}
+	return strings.Join(quoted, " ")
 }
 
 func (s *Server) elicitValue(ctx context.Context, message string) (string, bool) {
@@ -259,7 +271,8 @@ func (s *Server) handleRun(ctx context.Context, request mcp.CallToolRequest) (*m
 		}
 		names = []string{stdinName}
 	}
-	confirmed, message := s.confirmRun(ctx, command, names, args)
+	sort.Strings(names)
+	confirmed, message := s.confirmRun(ctx, command, names)
 	if !confirmed {
 		return mcp.NewToolResultText(message), nil
 	}

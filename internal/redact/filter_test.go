@@ -16,6 +16,12 @@ func TestApply(t *testing.T) {
 		{"ignora cortos", "abc xyz", []string{"abc"}, "abc xyz"},
 		{"sin secretos", "hola", nil, "hola"},
 		{"multiples", "a1b2 x3y4", []string{"a1b2", "x3y4"}, "[REDACTED] [REDACTED]"},
+		{"base64", "token YWJjMTIz", []string{"abc123"}, "token [REDACTED]"},
+		{"reversa", "token 321cba", []string{"abc123"}, "token [REDACTED]"},
+		{"hex", "token 616263313233", []string{"abc123"}, "token [REDACTED]"},
+		{"hex espaciado", "token 61 62 63 31 32 33", []string{"abc123"}, "token [REDACTED]"},
+		{"split con espacios", "token a b c 1 2 3", []string{"abc123"}, "[REDACTED: posible secreto transformado]"},
+		{"substring ordenado", "largo y larg", []string{"larg", "largo"}, "[REDACTED] y [REDACTED]"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

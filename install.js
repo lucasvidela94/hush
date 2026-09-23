@@ -13,7 +13,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const zlib = require("zlib");
-const { execFileSync, execSync } = require("child_process");
+const { execFileSync } = require("child_process");
 
 const PKG = require("./package.json");
 const REPO = PKG.repository.url.replace("git+", "").replace(".git", "");
@@ -38,18 +38,23 @@ function platform() {
 
 function download(url, dest) {
   return new Promise((resolve, reject) => {
+    const { protocol } = new URL(url);
+    if (protocol !== "https:") {
+      reject(new Error(`refusing non-https URL: ${url}`));
+      return;
+    }
     const https = require("https");
     const file = fs.createWriteStream(dest);
     https
       .get(url, (res) => {
         if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
           file.close();
-          fs.unlinkSync(dest);
+          fs.rmSync(dest, { force: true });
           return download(res.headers.location, dest).then(resolve).catch(reject);
         }
         if (res.statusCode !== 200) {
           file.close();
-          fs.unlinkSync(dest);
+          fs.rmSync(dest, { force: true });
           reject(new Error(`HTTP ${res.statusCode}: ${url}`));
           return;
         }
@@ -61,7 +66,7 @@ function download(url, dest) {
       })
       .on("error", (err) => {
         file.close();
-        fs.unlinkSync(dest, () => {});
+        fs.rmSync(dest, { force: true });
         reject(err);
       });
   });
@@ -70,7 +75,7 @@ function download(url, dest) {
 function binaryInstalled() {
   if (!fs.existsSync(BIN_PATH)) return false;
   try {
-    const out = execSync(`"${BIN_PATH}" version 2>&1 || true`, { encoding: "utf-8" });
+    const out = execFileSync(BIN_PATH, ["version"], { encoding: "utf-8" });
     return out.includes(VERSION) || out.includes(PKG.version);
   } catch {
     return false;
@@ -111,8 +116,9 @@ async function ensureBinary() {
 }
 
 async function downloadRelease(assetName) {
+  const { randomBytes } = require("crypto");
   const url = `${REPO}/releases/download/${VERSION}/${assetName}`;
-  const dest = path.join(os.tmpdir(), assetName);
+  const dest = path.join(os.tmpdir(), `hush-${process.pid}-${randomBytes(4).toString("hex")}.gz`);
   console.log(`  ⬇ Downloading ${assetName}...`);
   try {
     await download(url, dest);
@@ -128,9 +134,9 @@ async function downloadRelease(assetName) {
 }
 
 async function verifyChecksum(assetName, compressed) {
-  const { createHash } = require("crypto");
+  const { createHash, randomBytes } = require("crypto");
   const sumsUrl = `${REPO}/releases/download/${VERSION}/checksums.txt`;
-  const sumsDest = path.join(os.tmpdir(), `hush-checksums-${process.pid}.txt`);
+  const sumsDest = path.join(os.tmpdir(), `hush-sums-${process.pid}-${randomBytes(4).toString("hex")}.txt`);
   await download(sumsUrl, sumsDest);
   const sums = fs.readFileSync(sumsDest, "utf-8");
   fs.unlinkSync(sumsDest);

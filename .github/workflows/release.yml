@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -78,8 +79,12 @@ jobs:
       # Fallback when npm Trusted Publishing (OIDC) is not configured yet:
       # set the NPM_TOKEN repo secret to a granular automation token.
       - name: npm auth (fallback token)
-        if: ${{ secrets.NPM_TOKEN != '' }}
-        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" >> publish/.npmrc
+        run: |
+          if [ -n "${NPM_TOKEN_FALLBACK}" ]; then
+            echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN_FALLBACK}" >> publish/.npmrc
+          fi
+        env:
+          NPM_TOKEN_FALLBACK: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish to npm (OIDC)
         run: |

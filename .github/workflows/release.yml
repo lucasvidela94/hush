@@ -129,6 +129,22 @@ jobs:
           for d in */; do (cd "$d" && sha256sum *.gz); done > checksums.txt
           cat checksums.txt
 
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: "1.25"
+
+      - name: Sign checksums
+        env:
+          HUSH_SIGN_PRIV: ${{ secrets.HUSH_SIGN_PRIV }}
+        run: |
+          if [ -z "$HUSH_SIGN_PRIV" ]; then
+            echo "sin HUSH_SIGN_PRIV: release sin firma (update avisará)"
+            exit 0
+          fi
+          cd artifacts
+          HUSH_SIGN_PRIV="$HUSH_SIGN_PRIV" go run ./cmd/hush-sign sign checksums.txt > checksums.txt.sig
+          cat checksums.txt.sig
+
       - name: Create release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
@@ -138,3 +154,4 @@ jobs:
           files: |
             artifacts/**/*.gz
             artifacts/checksums.txt
+            artifacts/checksums.txt.sig

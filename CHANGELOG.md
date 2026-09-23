@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.4.3
+
+- Releases firmados automáticamente en CI (clave en secret `HUSH_SIGN_PRIV`).
+
+## v0.4.2
+
+- Nueva clave pública de firmas embebida.
+
 ## v0.4.1
 
 - Releases firmados con ed25519 offline (`hush-sign`); `update` verifica

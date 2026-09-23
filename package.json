@@ -19,9 +19,6 @@
     "url": "https://github.com/lucasvidela94/hush/issues"
   },
   "homepage": "https://github.com/lucasvidela94/hush",
-  "bin": {
-    "hush": "./bin/hush"
-  },
   "scripts": {
     "postinstall": "node install.js",
     "preuninstall": "node uninstall.js"

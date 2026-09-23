@@ -1,22 +1,24 @@
-# hush — el agente usa secretos sin verlos
+# hush — AI agents use secrets without ever seeing them
 
 ```bash
-npm i -g hush-secrets          # instala binario + skill en tus harnesses
-hush set MY_API_KEY            # en TU terminal, nunca en el chat
-hush update                    # self-update desde GitHub releases
+npm i -g hush-secrets          # installs binary + skill into your harnesses
+hush set MY_API_KEY            # in YOUR terminal, never in chat
+hush update                    # self-update from GitHub releases
 ```
 
-## Por qué
+## Why
 
-Pegar un secreto en el chat del harness lo deja en el transcript para siempre.
-`hush` separa los canales: el humano carga por TTY o por el prompt nativo del
-harness (vía MCP), el agente solo orquesta nombres. Ninguna tool devuelve valores.
+Pasting a secret into a harness chat leaves it in the transcript forever.
+`hush` separates the channels: the human loads values via TTY or the harness
+native prompt (over MCP), the agent only orchestrates names. No tool ever
+returns a value.
 
-## MCP (harness agnóstico: claude, opencode, cursor, codex)
+## MCP (harness-agnostic: claude, opencode, cursor, codex)
 
-`hush serve` expone stdio con 4 tools: `hush_check`, `hush_list`, `hush_need`
-(pide el valor por elicitation y lo guarda), `hush_run` (inyecta + redacta).
-`hush setup` instala el skill y muestra cómo registrar el servidor en cada harness.
+`hush serve` exposes stdio with 4 tools: `hush_check`, `hush_list`, `hush_need`
+(asks for the value via elicitation and stores it), `hush_run` (injects +
+redacts). `hush setup` installs the skill and shows how to register the
+server in each harness.
 
 ## CLI
 
@@ -28,17 +30,17 @@ hush run --only META_APP_SECRET -- npx wrangler deploy
 hush status
 ```
 
-`check` y `list` muestran solo nombres. `run` y `stdin` inyectan en el
-proceso hijo y redactan la salida a `[REDACTED]`.
+`check` and `list` print names only. `run` and `stdin` inject into the child
+process and redact output to `[REDACTED]`.
 
-## Desarrollo
+## Development
 
 ```bash
 make check   # generate + fmt + vet + test + build
 make hook    # pre-commit (generate + fmt + vet + test)
-./scripts/release.sh 0.2.0  # bump + tag (el workflow publica npm + release)
+./scripts/release.sh 0.2.0  # bump + tag (workflow publishes npm + release)
 ```
 
-Commits convencionales: `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`.
-`SKILL.md` es fuente única del skill; `internal/setup/skill.md` se regenera con
-`go generate ./...` (hay test que lo exige).
+Conventional commits: `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`.
+`SKILL.md` is the single source of the skill; `internal/setup/skill.md` is
+regenerated with `go generate ./...` (a test enforces it).

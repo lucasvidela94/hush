@@ -1,0 +1,40 @@
+{
+  "name": "hush-secrets",
+  "version": "0.1.0",
+  "description": "hush — AI agents use secrets without ever seeing them. Vault + redacting runner + harness-agnostic MCP server.",
+  "keywords": [
+    "mcp",
+    "secrets",
+    "ai-agents",
+    "claude-code",
+    "opencode"
+  ],
+  "license": "MIT",
+  "author": "sombi",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sombi/hush.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sombi/hush/issues"
+  },
+  "homepage": "https://github.com/sombi/hush",
+  "bin": {
+    "hush": "./bin/hush"
+  },
+  "scripts": {
+    "postinstall": "node install.js",
+    "preuninstall": "node uninstall.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "os": [
+    "darwin",
+    "linux"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ]
+}

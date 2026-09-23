@@ -1,7 +1,7 @@
 # hush — AI agents use secrets without ever seeing them
 
 ```bash
-npm i -g hush-secrets          # installs binary + skill into your harnesses
+npm i -g --allow-scripts=hush-secrets hush-secrets  # installs binary + skill
 hush set MY_API_KEY            # in YOUR terminal, never in chat
 hush update                    # self-update from GitHub releases
 ```

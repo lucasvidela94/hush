@@ -54,6 +54,22 @@ recovery; wipe with `rm -rf ~/.hush`. See `SECURITY.md` and `PRIVACY.md`.
 
 `SECURITY.md` (threat model) · `PRIVACY.md` · `CONTRIBUTING.md` · `CHANGELOG.md`
 
+## Alternatives
+
+| | hush | psst | key-amnesia | akm | 1Password MCP |
+|---|---|---|---|---|---|
+| Agent never sees values | ✅ | ✅ | ✅ | ✅ | ✅ |
+| MCP server | ✅ | ❌ | ❌ | ❌ | ✅ (Codex only) |
+| Load via native prompt (no chat) | ✅ elicitation | ❌ | ✅ popup | ❌ | ✅ |
+| TTY-only export | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Vault corruption guard | ✅ | n/a | ❌ | ❌ | n/a |
+| Harness-agnostic setup | ✅ | ❌ | parcial | ❌ | ❌ |
+| Single binary, no runtime | ✅ Go | ✅ | ❌ Python | ✅ Rust* | ❌ |
+| Works offline / local-only | ✅ | ✅ | ✅ | ✅ | ❌ |
+
+*akm is macOS-only (Keychain). hush keeps a plain `0600` file so any dev can
+inspect, back up, and recover it with standard tools.
+
 ## Development
 
 ```bash

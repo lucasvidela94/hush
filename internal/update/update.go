@@ -181,6 +181,9 @@ func (u *SelfUpdater) downloadAndVerify(ctx context.Context, version, assetName 
 	if err != nil {
 		return nil, fmt.Errorf("fetch checksum: %w", err)
 	}
+	if err := u.verifyReleaseSignature(ctx, base, sums); err != nil {
+		return nil, err
+	}
 	expected, err := checksumFor(string(sums), assetName)
 	if err != nil {
 		return nil, err
@@ -208,6 +211,18 @@ func checksumFor(sums, assetName string) (string, error) {
 		return "", err
 	}
 	return "", fmt.Errorf("checksum for %s not found", assetName)
+}
+
+func (u *SelfUpdater) verifyReleaseSignature(ctx context.Context, base string, sums []byte) error {
+	if releasePubKey == "" {
+		return nil
+	}
+	sig, err := u.download(ctx, base+"/checksums.txt.sig")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "hush: release sin firma, solo sha256 (anterior a firmas)\n")
+		return nil
+	}
+	return VerifyBlob(releasePubKey, sums, strings.TrimSpace(string(sig)))
 }
 
 func (u *SelfUpdater) download(ctx context.Context, url string) ([]byte, error) {

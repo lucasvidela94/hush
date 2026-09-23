@@ -106,6 +106,24 @@ func TestDownloadAndVerifyEndToEnd(t *testing.T) {
 	}
 }
 
+func TestSignVerifyRoundtrip(t *testing.T) {
+	priv, pub, err := GenerateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	msg := []byte("checksums de mentira")
+	sig, err := SignBlob(priv, msg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := VerifyBlob(pub, msg, sig); err != nil {
+		t.Fatal(err)
+	}
+	if err := VerifyBlob(pub, []byte("otro"), sig); err == nil {
+		t.Fatal("verificó mensaje alterado")
+	}
+}
+
 func TestApplyReemplazaBinario(t *testing.T) {
 	dir := t.TempDir()
 	target := filepath.Join(dir, "hush")

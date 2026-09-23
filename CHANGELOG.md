@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.4.0
+
+- `hush_run` pide confirmación humana por elicitation (comando + secretos).
+- Redacción por decodificación (Basic auth y hex con saltos ya no fugan) y
+  fail-closed siempre, no solo sin match literal.
+- Runner mata el grupo de procesos completo y MCP corta a los 5 minutos.
+- Vault versionado (`# hush-vault v2`, legacy intacto) + lock contra lost updates.
+- Firmas ed25519 offline para releases (`hush-sign`, clave pública embebida).
+- `x/term` para lectura sin eco (restore garantizado), multilínea con escapes.
+- CI: attestations de provenance, sin token fallback.
+
 ## v0.3.0
 
 - `run` deny-by-default: exige `--only`/`--all` (CLI) y `only[]`/`all` (MCP).

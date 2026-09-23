@@ -54,8 +54,8 @@ hush export                  # prints all, NAME=value per line
 hush export META_APP_SECRET  # prints one
 ```
 
-`export` refuses to run unless stdout is a TTY, so no harness can capture it
-by piping. Back up the file itself (`cp ~/.hush/vault …`) for disaster
+`export` refuses to run unless stdout is a TTY, so a harness cannot capture it
+by piping (a pty is not proof of a human — see `SECURITY.md`). Back up the file itself (`cp ~/.hush/vault …`) for disaster
 recovery; wipe with `rm -rf ~/.hush`. See `SECURITY.md` and `PRIVACY.md`.
 
 ## Docs
@@ -66,7 +66,8 @@ recovery; wipe with `rm -rf ~/.hush`. See `SECURITY.md` and `PRIVACY.md`.
 
 | | hush | psst | key-amnesia | akm | 1Password MCP |
 |---|---|---|---|---|---|
-| Agent never sees values | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Values hidden from transcript | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Hostile-agent isolation | ❌ honest | ❌ | parcial | parcial | ❌ |
 | MCP server | ✅ | ❌ | ❌ | ❌ | ✅ (Codex only) |
 | Load via native prompt (no chat) | ✅ elicitation | ❌ | ✅ popup | ❌ | ✅ |
 | TTY-only export | ✅ | ❌ | ❌ | ❌ | ❌ |

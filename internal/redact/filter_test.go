@@ -24,6 +24,11 @@ func TestApply(t *testing.T) {
 		{"mixto literal+split", "abc123 y a b c 1 2 3", []string{"abc123"}, "[REDACTED: posible secreto transformado]"},
 		{"basic auth", "dXNlcjpzdXBlci1zZWNyZXQtd29yaw==", []string{"super-secret-work"}, "[REDACTED: posible secreto transformado]"},
 		{"mayúsculas", "token ABC123", []string{"abc123"}, "token [REDACTED]"},
+		{"mayúsculas + espaciado", "token A B C 1 2 3", []string{"abc123"}, "[REDACTED: posible secreto transformado]"},
+		{"token= con prefijo", "token=dXNlcjpzdXBlci1zZWNyZXQtd29yaw==", []string{"super-secret-work"}, "[REDACTED: posible secreto transformado]"},
+		{"base64url", "token=Pj4-Pz8_Pj4-Pz8_", []string{">>>???>>>???"}, "[REDACTED: posible secreto transformado]"},
+		{"base64 con wrap", "dXNlcjpzdXBl\nci1zZWNyZXQtd29yaw==", []string{"super-secret-work"}, "[REDACTED: posible secreto transformado]"},
+		{"doble base64", "ZFhObGNqcHpkWEJsY2kxelpXTnlaWFF0ZDI5eWF3PT0=", []string{"super-secret-work"}, "[REDACTED: posible secreto transformado]"},
 		{"substring ordenado", "largo y larg", []string{"larg", "largo"}, "[REDACTED] y [REDACTED]"},
 	}
 	for _, tc := range cases {

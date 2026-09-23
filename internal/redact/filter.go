@@ -22,7 +22,7 @@ func Apply(data []byte, secrets []string) []byte {
 		return data
 	}
 	out := replaceLiterals(data, long)
-	if scanEncoded(data, long) || scanSpaceless(out, long) {
+	if scanEncoded(string(data), long) || scanSpaceless(out, long) {
 		return []byte(nuke)
 	}
 	return out
@@ -63,35 +63,93 @@ func replaceLiterals(data []byte, secrets []string) []byte {
 	return out
 }
 
-func scanEncoded(data []byte, secrets []string) bool {
-	for _, token := range candidateTokens(string(data)) {
-		for _, decoded := range decodeForms(token) {
-			for _, s := range secrets {
-				if len(s) >= 8 && strings.Contains(decoded, s) {
-					return true
+func scanEncoded(s string, secrets []string) bool {
+	level := encodedRuns(s)
+	for range 3 {
+		next := []string{}
+		for _, token := range level {
+			for _, form := range decodeForms(token) {
+				for _, secret := range secrets {
+					if len(secret) >= 8 && strings.Contains(form, secret) {
+						return true
+					}
+				}
+				if len(next) < 200 {
+					next = append(next, form)
 				}
 			}
 		}
+		if len(next) == 0 {
+			return false
+		}
+		level = next
 	}
 	return false
 }
 
-func candidateTokens(s string) []string {
-	fields := strings.FieldsFunc(s, func(r rune) bool {
-		isToken := r >= '0' && r <= '9' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r == '+' || r == '/' || r == '='
-		return !isToken
-	})
-	out := []string{}
-	for _, f := range fields {
-		if len(f) >= 16 && len(out) < 50 {
-			chunk := f
-			if len(chunk) > 4096 {
-				chunk = chunk[:4096]
+func encodedRuns(s string) []string {
+	words := strings.Fields(s)
+	runs := []string{}
+	current := ""
+	flush := func() {
+		if len(current) >= 16 && len(runs) < 50 {
+			if len(current) > 8192 {
+				current = current[:8192]
 			}
-			out = append(out, chunk)
+			runs = append(runs, current)
+		}
+		current = ""
+	}
+	for _, w := range words {
+		for _, part := range splitEquals(w) {
+			if isEncodedWord(part) {
+				if len(part) >= 16 && len(part) <= 8192 && len(runs) < 50 {
+					runs = append(runs, part)
+				}
+				current += part
+				continue
+			}
+			flush()
+		}
+	}
+	flush()
+	return runs
+}
+
+func splitEquals(w string) []string {
+	k := len(w)
+	for k > 0 && w[k-1] == '=' {
+		k--
+	}
+	head, tail := w[:k], w[k:]
+	parts := strings.Split(head, "=")
+	out := []string{}
+	for i, p := range parts {
+		if i == len(parts)-1 {
+			p += tail
+		}
+		if p != "" {
+			out = append(out, p)
 		}
 	}
 	return out
+}
+
+func isEncodedWord(w string) bool {
+	if len(w) == 0 || len(w) > 256 {
+		return false
+	}
+	letters := 0
+	for _, r := range w {
+		switch {
+		case r >= '0' && r <= '9', r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z':
+			letters++
+		case r == '+' || r == '/' || r == '-' || r == '_' || r == '=':
+		default:
+			return false
+		}
+	}
+	return letters >= 4
 }
 
 func decodeForms(token string) []string {
@@ -102,11 +160,14 @@ func decodeForms(token string) []string {
 		}
 		return r
 	}, token)
-	if raw, err := base64.StdEncoding.DecodeString(flat); err == nil {
-		out = append(out, string(raw))
-	}
-	if raw, err := base64.RawStdEncoding.DecodeString(flat); err == nil {
-		out = append(out, string(raw))
+	b64 := strings.NewReplacer("-", "+", "_", "/").Replace(flat)
+	for _, pad := range []string{"", "=", "=="} {
+		if raw, err := base64.StdEncoding.DecodeString(b64 + pad); err == nil {
+			out = append(out, string(raw))
+		}
+		if raw, err := base64.RawStdEncoding.DecodeString(b64); err == nil {
+			out = append(out, string(raw))
+		}
 	}
 	if raw, err := hex.DecodeString(flat); err == nil {
 		out = append(out, string(raw))
@@ -115,22 +176,25 @@ func decodeForms(token string) []string {
 }
 
 func scanSpaceless(redacted []byte, secrets []string) bool {
-	flat := stripSpaces(string(redacted))
+	flat := normalize(string(redacted))
 	for _, s := range secrets {
-		if strings.Contains(flat, stripSpaces(s)) {
+		if strings.Contains(flat, normalize(s)) {
 			return true
 		}
 	}
 	return false
 }
 
-func stripSpaces(s string) string {
+func normalize(s string) string {
 	return strings.Map(func(r rune) rune {
-		switch r {
-		case ' ', '\t', '\n', '\r', '-', '_', '.', ',', ':', ';', '/', '|':
+		switch {
+		case r >= 'A' && r <= 'Z':
+			return r + ('a' - 'A')
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			return r
+		default:
 			return -1
 		}
-		return r
 	}, s)
 }
 

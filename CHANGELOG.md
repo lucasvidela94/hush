@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.4.1
+
+- Releases firmados con ed25519 offline (`hush-sign`); `update` verifica
+  `checksums.txt.sig` y solo acepta releases sin firma con aviso.
+
 ## v0.4.0
 
 - `hush_run` pide confirmación humana por elicitation (comando + secretos).

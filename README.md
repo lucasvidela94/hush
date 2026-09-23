@@ -70,9 +70,18 @@ recovery; wipe with `rm -rf ~/.hush`. See `SECURITY.md` and `PRIVACY.md`.
 - `hush_run` over MCP asks for human confirmation on every call and times
   out slow commands at 5 minutes. Long-lived processes belong in your
   terminal, not in the agent.
-- Elicitation (native secret prompts) verified on Claude Code; other
-  harnesses fall back to `hush set` in your terminal. `hush doctor` tells you
-  where you stand.
+- Elicitation (native secret prompts) needs an interactive session; headless
+  runs get the safe fallback (`hush set` in your terminal).
+
+## Verified harnesses
+
+| Harness | MCP tools | Elicitation UI |
+|---|---|---|
+| OpenCode | ✅ verified live | interactive sessions |
+| Codex | ✅ via `exec --approve-for-me` (headless denies MCP by policy) | interactive sessions |
+| Pi | ✅ verified headless | interactive sessions |
+| Claude Code | registration via `claude mcp add` (CLI needs login here) | interactive sessions |
+| Cursor | `~/.cursor/mcp.json` (agent needs `agent login` here) | interactive sessions |
 
 ## Docs
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.5.4
+
+- README con matriz de harnesses verificada en vivo.
+
 ## v0.5.3
 
 - `hush doctor`: chequeo de binario, vault, skills y registro MCP.

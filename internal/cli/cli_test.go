@@ -72,3 +72,41 @@ func TestCanRevealRechazaBuffer(t *testing.T) {
 		t.Fatal("buffer no es terminal")
 	}
 }
+
+func TestComandoDesconocidoAvisa(t *testing.T) {
+	store := testStore(t, nil)
+	var out, errB bytes.Buffer
+	if code := Run([]string{"frobnicate"}, store, nil, &out, &errB); code != Usage {
+		t.Fatalf("exit %d", code)
+	}
+	if !strings.Contains(errB.String(), "frobnicate") {
+		t.Fatalf("no nombra el comando: %q", errB.String())
+	}
+}
+
+func TestCheckSinNombresEsUso(t *testing.T) {
+	store := testStore(t, nil)
+	var out, errB bytes.Buffer
+	if code := Run([]string{"check"}, store, nil, &out, &errB); code != Usage {
+		t.Fatalf("exit %d", code)
+	}
+}
+
+func TestRunOnlySinValorEsUso(t *testing.T) {
+	store := testStore(t, nil)
+	var out, errB bytes.Buffer
+	if code := Run([]string{"run", "--only"}, store, nil, &out, &errB); code != Usage {
+		t.Fatalf("exit %d", code)
+	}
+}
+
+func TestHelpPorComando(t *testing.T) {
+	store := testStore(t, nil)
+	var out bytes.Buffer
+	if code := Run([]string{"help", "run"}, store, nil, &out, &out); code != OK {
+		t.Fatalf("exit %d", code)
+	}
+	if !strings.Contains(out.String(), "hush run") {
+		t.Fatalf("ayuda vacía: %q", out.String())
+	}
+}

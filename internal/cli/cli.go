@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"hush/internal/mcp"
@@ -54,7 +55,10 @@ func Run(argv []string, store vault.Store, stdin *os.File, stdout, stderr io.Wri
 	case "version", "--version", "-v":
 		fmt.Fprintf(stdout, "hush %s\n", Version)
 		return OK
+	case "help", "--help", "-h":
+		return help(argv[1:], stdout)
 	default:
+		fmt.Fprintf(stderr, "hush: comando desconocido %q\n\n", argv[0])
 		printUsage(stdout)
 		return Usage
 	}
@@ -93,6 +97,10 @@ func check(argv []string, store vault.Store, stdout, stderr io.Writer) int {
 			continue
 		}
 		names = append(names, a)
+	}
+	if len(names) == 0 {
+		fmt.Fprintln(stderr, "uso: hush check [--json] NOMBRE...")
+		return Usage
 	}
 	values, err := store.Load()
 	if err != nil {
@@ -140,7 +148,11 @@ func list(store vault.Store, stdout, stderr io.Writer) int {
 func run(argv []string, store vault.Store, stdin *os.File, stdout, stderr io.Writer) int {
 	only := map[string]bool{}
 	rest := argv
-	if len(argv) >= 2 && argv[0] == "--only" {
+	if len(argv) >= 1 && argv[0] == "--only" {
+		if len(argv) < 3 {
+			fmt.Fprintln(stderr, "uso: hush run [--only A,B] -- comando...")
+			return Usage
+		}
 		for _, k := range strings.Split(argv[1], ",") {
 			only[strings.TrimSpace(k)] = true
 		}
@@ -186,23 +198,51 @@ func pipeIn(argv []string, store vault.Store, stdout, stderr io.Writer) int {
 }
 
 func printUsage(w io.Writer) {
-	fmt.Fprintln(w, `hush — el agente usa secretos sin verlos.
+	fmt.Fprintln(w, `hush — tus secretos, sin que el agente los vea.
 
-  hush set NOMBRE                  humano en su terminal (TTY o pipe)
-  hush check [--json] A B...       agente: solo nombres, nunca valores
-  hush list                        solo nombres
-  hush run [--only A,B] -- cmd...  inyecta en hijo + redacta salida
-  hush stdin NOMBRE -- cmd...      escribe valor al stdin del hijo
+  hush set NOMBRE                  guarda un valor (te lo pide sin mostrarlo)
+  hush check NOMBRE...             ¿están guardados? (solo nombres)
+  hush list                        qué nombres hay guardados
+  hush run [--only A,B] -- cmd...  corre un comando con los valores inyectados
+  hush stdin NOMBRE -- cmd...      le escribe un valor al stdin del comando
   hush export [NOMBRES...]         muestra valores SOLO en terminal real
-  hush serve                       servidor MCP stdio (harness agnóstico)
+  hush serve                       servidor MCP para tu harness de IA
   hush setup                       instala el skill en tus harnesses
-  hush update                      self-update desde GitHub releases
-  hush status                      versión + vault + skill
+  hush update                      actualiza hush
+  hush status                      versión + vault + skills
   hush version                     versión
+  hush help [COMANDO]              ayuda de un comando
 
 ej:
   openssl rand -hex 24 | hush set WHATSAPP_VERIFY_TOKEN
   hush stdin WHATSAPP_VERIFY_TOKEN -- npx wrangler secret put WHATSAPP_VERIFY_TOKEN`)
+}
+
+var helpText = map[string]string{
+	"set":    "uso: hush set NOMBRE\nej: openssl rand -hex 24 | hush set MI_TOKEN\nGuarda un valor leyéndolo de tu terminal (sin mostrarlo) o de un pipe.",
+	"check":  "uso: hush check [--json] NOMBRE...\nDice qué nombres están guardados y cuáles faltan. Nunca muestra valores.",
+	"list":   "uso: hush list\nLista los nombres guardados. Nunca muestra valores.",
+	"run":    "uso: hush run [--only A,B] -- comando...\nCorre el comando con los secretos como variables de entorno y tapa los valores en la salida.\nej: hush run --only API_KEY -- ./deploy.sh",
+	"stdin":  "uso: hush stdin NOMBRE -- comando...\nLe escribe el valor al stdin del comando. Para programas que piden el secreto por consola.\nej: hush stdin MI_TOKEN -- npx wrangler secret put MI_TOKEN",
+	"export": "uso: hush export [NOMBRES...]\nMuestra valores en TU terminal. Se niega si la salida no es una terminal (así ningún agente puede capturarlos).",
+	"serve":  "uso: hush serve\nServidor MCP (stdio) para tu harness de IA. Registralo con: hush setup",
+	"setup":  "uso: hush setup\nInstala el skill en tus harnesses (claude, codex, cursor, agents) y muestra cómo conectar el servidor MCP.",
+	"update": "uso: hush update\nDescarga la última versión desde GitHub releases (verificada por checksum) y la instala.",
+	"status": "uso: hush status\nMuestra versión, ubicación del vault y skills instalados.",
+}
+
+func help(argv []string, stdout io.Writer) int {
+	if len(argv) == 0 {
+		printUsage(stdout)
+		return OK
+	}
+	if text, ok := helpText[argv[0]]; ok {
+		fmt.Fprintln(stdout, text)
+		return OK
+	}
+	fmt.Fprintf(stdout, "hush: no hay ayuda para %q\n\n", argv[0])
+	printUsage(stdout)
+	return Usage
 }
 
 func serve(store vault.Store, stderr io.Writer) int {
@@ -252,6 +292,18 @@ func status(store vault.Store, stdout, stderr io.Writer) int {
 		return Failed
 	}
 	fmt.Fprintf(stdout, "hush %s\nvault: %s (%d secretos)\n", Version, store.Path(), len(values))
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return OK
+	}
+	ok := 0
+	targets := setup.Targets(home)
+	for _, t := range targets {
+		if _, err := os.Stat(filepath.Join(t.Dir, "SKILL.md")); err == nil {
+			ok++
+		}
+	}
+	fmt.Fprintf(stdout, "skills: %d/%d harnesses\n", ok, len(targets))
 	return OK
 }
 

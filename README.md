@@ -1,5 +1,14 @@
 # hush — AI agents use secrets without ever seeing them
 
+## Scope honesty
+
+`hush` protects the **transcript**: values never enter chat, tool outputs, or
+logs through its own channels. It does **not** protect against a hostile or
+prompt-injected agent with shell access — such an agent can `cat` the vault,
+`tee` stdin to disk, or transform values (base64/reverse) past literal
+redaction. If your adversary is the agent itself, you need OS-level isolation
+(keychain, daemon + socket auth), not hush. See `SECURITY.md`.
+
 ```bash
 npm i -g --allow-scripts=hush-secrets hush-secrets  # installs binary + skill
 hush set MY_API_KEY            # in YOUR terminal, never in chat
@@ -29,7 +38,6 @@ hush stdin WHATSAPP_VERIFY_TOKEN -- npx wrangler secret put WHATSAPP_VERIFY_TOKE
 hush run --only META_APP_SECRET -- npx wrangler deploy
 hush status
 ```
-
 `check` and `list` print names only. `run` and `stdin` inject into the child
 process and redact output to `[REDACTED]`.
 

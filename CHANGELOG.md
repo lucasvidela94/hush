@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.3.0
+
+- `run` deny-by-default: exige `--only`/`--all` (CLI) y `only[]`/`all` (MCP).
+- Redacción endurecida: base64/hex/URL/reversa, orden por longitud, captura
+  acotada a 1 MB, cancelación por contexto.
+- Vault atómico (tmp+fsync+rename), symlinks rechazados, permisos reforzados,
+  multilínea con escapes (PEM y JSON ya entran).
+- `hush_need` valida nombres (`[A-Z_][A-Z0-9_]*`) y acota el hint.
+- Updater testeado end-to-end (servidor local) y checksums sin prefijo.
+- CI: tests antes de build, actions pineadas por SHA, permisos mínimos.
+- `install.js`: tmp único, solo https, sin shell en `version`.
+
 ## v0.2.1
 
 - Tests del camino feliz de `export` y lectura por pipe (guard inyectable).

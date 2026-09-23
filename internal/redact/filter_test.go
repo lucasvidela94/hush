@@ -21,6 +21,9 @@ func TestApply(t *testing.T) {
 		{"hex", "token 616263313233", []string{"abc123"}, "token [REDACTED]"},
 		{"hex espaciado", "token 61 62 63 31 32 33", []string{"abc123"}, "token [REDACTED]"},
 		{"split con espacios", "token a b c 1 2 3", []string{"abc123"}, "[REDACTED: posible secreto transformado]"},
+		{"mixto literal+split", "abc123 y a b c 1 2 3", []string{"abc123"}, "[REDACTED: posible secreto transformado]"},
+		{"basic auth", "dXNlcjpzdXBlci1zZWNyZXQtd29yaw==", []string{"super-secret-work"}, "[REDACTED: posible secreto transformado]"},
+		{"mayúsculas", "token ABC123", []string{"abc123"}, "token [REDACTED]"},
 		{"substring ordenado", "largo y larg", []string{"larg", "largo"}, "[REDACTED] y [REDACTED]"},
 	}
 	for _, tc := range cases {

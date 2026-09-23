@@ -1,4 +1,10 @@
-# hush — AI agents use secrets without ever seeing them
+# hush — keep API keys out of AI agent chats
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/lucasvidela94/hush/master/docs/mascot/hush-mascot.png" width="320" alt="hush mascot tapping shh">
+</p>
+
+<p align="center"><i>He says nothing. He keeps your keys. It still works.</i></p>
 
 ## Scope honesty
 

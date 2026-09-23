@@ -82,10 +82,20 @@ func TestDownloadAndVerifyEndToEnd(t *testing.T) {
 	}
 	sum := sha256.Sum256(buf.Bytes())
 	sums := hex.EncodeToString(sum[:]) + "  hush-linux-amd64.gz\n"
+	priv, pub, err := GenerateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sig, err := SignBlob(priv, []byte(sums))
+	if err != nil {
+		t.Fatal(err)
+	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case strings.HasSuffix(r.URL.Path, ".gz"):
 			_, _ = w.Write(buf.Bytes())
+		case strings.HasSuffix(r.URL.Path, ".sig"):
+			_, _ = io.WriteString(w, sig)
 		case strings.HasSuffix(r.URL.Path, "checksums.txt"):
 			_, _ = io.WriteString(w, sums)
 		default:
@@ -93,6 +103,10 @@ func TestDownloadAndVerifyEndToEnd(t *testing.T) {
 		}
 	}))
 	defer server.Close()
+
+	oldKeys := releasePubKeys
+	releasePubKeys = []string{pub}
+	defer func() { releasePubKeys = oldKeys }()
 
 	u := NewSelfUpdater()
 	u.BaseURL = server.URL

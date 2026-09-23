@@ -214,15 +214,20 @@ func checksumFor(sums, assetName string) (string, error) {
 }
 
 func (u *SelfUpdater) verifyReleaseSignature(ctx context.Context, base string, sums []byte) error {
-	if releasePubKey == "" {
+	if len(releasePubKeys) == 0 {
 		return nil
 	}
 	sig, err := u.download(ctx, base+"/checksums.txt.sig")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "hush: release sin firma, solo sha256 (anterior a firmas)\n")
-		return nil
+		return fmt.Errorf("release sin firma: reinstalá con npm i -g hush-secrets")
 	}
-	return VerifyBlob(releasePubKey, sums, strings.TrimSpace(string(sig)))
+	trimmed := strings.TrimSpace(string(sig))
+	for _, pub := range releasePubKeys {
+		if VerifyBlob(pub, sums, trimmed) == nil {
+			return nil
+		}
+	}
+	return fmt.Errorf("la firma no coincide con ninguna clave conocida")
 }
 
 func (u *SelfUpdater) download(ctx context.Context, url string) ([]byte, error) {

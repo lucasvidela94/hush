@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.5.2
+
+- Redacción: wraps con padding, `token=`/`%` con runs aislados, base64 del
+  reverso y hex del reverso, stride crudo 2-4, octal y decimal en paralelo,
+  guard <5 contra falsos positivos.
+
 ## v0.5.1
 
 - Fix: normalizados vacíos ya no anulan salidas (guard <4 real).

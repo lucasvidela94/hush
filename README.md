@@ -33,6 +33,27 @@ hush status
 `check` and `list` print names only. `run` and `stdin` inject into the child
 process and redact output to `[REDACTED]`.
 
+## Where secrets live, and getting them back
+
+Values are stored in `~/.hush/vault` (file `0600`, dir `0700`), one
+`NAME=value` per line. There is intentionally **no** read-back over MCP and
+no `get` command — anything an agent can call ends up in its context.
+
+To recover a value (rotation, migration, backup), use a real terminal:
+
+```bash
+hush export                  # prints all, NAME=value per line
+hush export META_APP_SECRET  # prints one
+```
+
+`export` refuses to run unless stdout is a TTY, so no harness can capture it
+by piping. Back up the file itself (`cp ~/.hush/vault …`) for disaster
+recovery; wipe with `rm -rf ~/.hush`. See `SECURITY.md` and `PRIVACY.md`.
+
+## Docs
+
+`SECURITY.md` (threat model) · `PRIVACY.md` · `CONTRIBUTING.md` · `CHANGELOG.md`
+
 ## Development
 
 ```bash

@@ -2,6 +2,7 @@ package redact
 
 import (
 	"bytes"
+	"encoding/base32"
 	"encoding/base64"
 	"encoding/hex"
 	"net/url"
@@ -22,10 +23,71 @@ func Apply(data []byte, secrets []string) []byte {
 		return data
 	}
 	out := replaceLiterals(data, long)
-	if scanEncoded(string(data), long) || scanSpaceless(out, long) {
+	if scanEncoded(string(data), long) || scanSpaceless(out, long) || scanStrided(out, long) || scanDecimal(string(data), long) {
 		return []byte(nuke)
 	}
 	return out
+}
+
+func scanStrided(redacted []byte, secrets []string) bool {
+	flat := []rune(normalize(string(redacted)))
+	for _, s := range secrets {
+		norm := normalize(s)
+		if len(norm) < 4 {
+			continue
+		}
+		for _, parity := range []int{0, 1} {
+			var b strings.Builder
+			for i := parity; i < len(flat); i += 2 {
+				b.WriteRune(flat[i])
+			}
+			if strings.Contains(b.String(), norm) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func scanDecimal(s string, secrets []string) bool {
+	fields := strings.Fields(s)
+	var buf []byte
+	flush := func() bool {
+		if len(buf) >= 4 {
+			for _, secret := range secrets {
+				if len(secret) >= 8 && bytes.Contains(buf, []byte(secret)) {
+					return true
+				}
+			}
+		}
+		buf = nil
+		return false
+	}
+	for _, f := range fields {
+		if len(f) > 3 {
+			if flush() {
+				return true
+			}
+			continue
+		}
+		n := 0
+		ok := len(f) > 0
+		for _, r := range f {
+			if r < '0' || r > '9' {
+				ok = false
+				break
+			}
+			n = n*10 + int(r-'0')
+		}
+		if !ok || n > 255 || len(buf) >= 4096 {
+			if flush() {
+				return true
+			}
+			continue
+		}
+		buf = append(buf, byte(n))
+	}
+	return flush()
 }
 
 func replaceLiterals(data []byte, secrets []string) []byte {
@@ -102,14 +164,14 @@ func encodedRuns(s string) []string {
 	}
 	for _, w := range words {
 		for _, part := range splitEquals(w) {
-			if isEncodedWord(part) {
-				if len(part) >= 16 && len(part) <= 8192 && len(runs) < 50 {
-					runs = append(runs, part)
-				}
-				current += part
+			if !isEncodedWord(part) {
+				flush()
 				continue
 			}
-			flush()
+			if len(part) >= 16 && len(part) <= 8192 && len(runs) < 50 && standsAlone(part) {
+				runs = append(runs, part)
+			}
+			current += part
 		}
 	}
 	flush()
@@ -139,14 +201,23 @@ func isEncodedWord(w string) bool {
 	if len(w) == 0 || len(w) > 256 {
 		return false
 	}
+	for _, r := range w {
+		switch {
+		case r >= '0' && r <= '9', r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z',
+			r == '+' || r == '/' || r == '-' || r == '_' || r == '=':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func standsAlone(w string) bool {
 	letters := 0
 	for _, r := range w {
 		switch {
 		case r >= '0' && r <= '9', r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z':
 			letters++
-		case r == '+' || r == '/' || r == '-' || r == '_' || r == '=':
-		default:
-			return false
 		}
 	}
 	return letters >= 4
@@ -169,6 +240,11 @@ func decodeForms(token string) []string {
 			out = append(out, string(raw))
 		}
 	}
+	for _, pad := range []string{"", "=", "==", "===", "====", "====="} {
+		if raw, err := base32.StdEncoding.DecodeString(strings.ToUpper(flat) + pad); err == nil {
+			out = append(out, string(raw))
+		}
+	}
 	if raw, err := hex.DecodeString(flat); err == nil {
 		out = append(out, string(raw))
 	}
@@ -178,7 +254,7 @@ func decodeForms(token string) []string {
 func scanSpaceless(redacted []byte, secrets []string) bool {
 	flat := normalize(string(redacted))
 	for _, s := range secrets {
-		if strings.Contains(flat, normalize(s)) {
+		if norm := normalize(s); len(norm) >= 4 && strings.Contains(flat, norm) {
 			return true
 		}
 	}

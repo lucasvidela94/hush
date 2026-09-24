@@ -1,6 +1,6 @@
 {
   "name": "hush-secrets",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "description": "hush — keep API keys out of AI agent chats. Vault + redacting runner + harness-agnostic MCP server.",
   "keywords": [
     "mcp",

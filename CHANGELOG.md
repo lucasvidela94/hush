@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.5.6
+
+- Rotación de clave de firma: se agrega segunda pubkey a `releasePubKeys`.
+  Los binarios ≤v0.5.3 rechazan la firma nueva (fail-closed) y piden
+  reinstalar por npm una vez. v0.5.5 quedó solo en npm (sin GitHub Release).
+
 ## v0.5.5
 
 - `hush set` muestra `*` por caracter (Backspace borra uno, Ctrl-U limpia

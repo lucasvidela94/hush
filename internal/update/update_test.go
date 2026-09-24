@@ -155,3 +155,46 @@ func TestApplyReemplazaBinario(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+func TestVerifySegundaClaveRota(t *testing.T) {
+	oldKeys := releasePubKeys
+	defer func() { releasePubKeys = oldKeys }()
+
+	privVieja, pubVieja, err := GenerateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	privNueva, pubNueva, err := GenerateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = privVieja
+	msg := []byte("checksums rotados")
+	sigNueva, err := SignBlob(privNueva, msg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	releasePubKeys = []string{pubVieja, pubNueva}
+	ok := false
+	for _, pub := range releasePubKeys {
+		if VerifyBlob(pub, msg, sigNueva) == nil {
+			ok = true
+		}
+	}
+	if !ok {
+		t.Fatal("firma de la clave nueva no verifica con la lista rotada")
+	}
+	privAjena, _, err := GenerateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sigAjena, err := SignBlob(privAjena, msg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, pub := range releasePubKeys {
+		if VerifyBlob(pub, msg, sigAjena) == nil {
+			t.Fatal("firma de clave desconocida aceptada")
+		}
+	}
+}

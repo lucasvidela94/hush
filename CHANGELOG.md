@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.5.5
+
+- `hush set` muestra `*` por caracter (Backspace borra uno, Ctrl-U limpia
+  la línea). Evita pegar dos veces sin darse cuenta; el valor sigue sin
+  salir en el transcript.
+
 ## v0.5.4
 
 - README con matriz de harnesses verificada en vivo.

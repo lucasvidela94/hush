@@ -222,7 +222,7 @@ func pipeIn(argv []string, store vault.Store, stdout, stderr io.Writer) int {
 func printUsage(w io.Writer) {
 	fmt.Fprintln(w, `hush — tus secretos, sin que el agente los vea.
 
-  hush set NOMBRE                  guarda un valor (te lo pide sin mostrarlo)
+  hush set NOMBRE                  guarda un valor (muestra * por caracter)
   hush check NOMBRE...             ¿están guardados? (solo nombres)
   hush list                        qué nombres hay guardados
   hush run [--only A,B | --all] -- cmd...  corre un comando con los valores inyectados
@@ -242,7 +242,7 @@ ej:
 }
 
 var helpText = map[string]string{
-	"set":    "uso: hush set NOMBRE\nej: openssl rand -hex 24 | hush set MI_TOKEN\nGuarda un valor leyéndolo de tu terminal (sin mostrarlo) o de un pipe.",
+	"set":    "uso: hush set NOMBRE\nej: openssl rand -hex 24 | hush set MI_TOKEN\nGuarda un valor leyéndolo de tu terminal (muestra * por caracter) o de un pipe.",
 	"check":  "uso: hush check [--json] NOMBRE...\nDice qué nombres están guardados y cuáles faltan. Nunca muestra valores.",
 	"list":   "uso: hush list\nLista los nombres guardados. Nunca muestra valores.",
 	"run":    "uso: hush run [--only A,B | --all] -- comando...\nCorre el comando solo con los secretos indicados (todos solo con --all explícito) y tapa los valores en la salida.\nej: hush run --only API_KEY -- ./deploy.sh",

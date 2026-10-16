@@ -1,6 +1,7 @@
 package redact
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 	"time"
@@ -124,14 +125,32 @@ func TestApplyNoFalsosPositivos(t *testing.T) {
 }
 
 func TestApplySalidaGrandeEsRapida(t *testing.T) {
-	data := []byte(strings.Repeat("linea de log normal sin nada raro 12345\n", 1<<15))
-	start := time.Now()
 	secrets := []string{"Zk9xQ7mPv2LwT8", "sk_live_SUPERSECRET123456789"}
-	scanPermuted(data, secrets)
-	scanMasked(data, secrets)
-	replaceLiterals(data, secrets)
-	if d := time.Since(start); d > 5*time.Second {
-		t.Fatalf("tardó %s", d)
+	normal := strings.Repeat("linea de log normal sin nada raro 12345\n", 1<<20/40)
+	cases := map[string]string{
+		"normal":                  normal,
+		"con una línea de base64": normal + "c2tfbGl2ZV9TVVBFUlNFQ1JFVDEyMzQ1Njc4OQ==\n",
+		"sin saltos de línea":     strings.ReplaceAll(normal, "\n", " "),
+	}
+	for name, data := range cases {
+		t.Run(name, func(t *testing.T) {
+			start := time.Now()
+			got := Apply([]byte(data), secrets)
+			if d := time.Since(start); d > 10*time.Second {
+				t.Fatalf("tardó %s", d)
+			}
+			if bytes.Contains(got, []byte("sk_live_SUPERSECRET")) {
+				t.Fatal("quedó visible")
+			}
+		})
+	}
+}
+
+func BenchmarkApplyUnMegabyte(b *testing.B) {
+	data := []byte(strings.Repeat("linea de log normal sin nada raro 12345\n", 1<<20/40) + "c2tfbGl2ZV9TVVBFUlNFQ1JFVDEyMzQ1Njc4OQ==\n")
+	secrets := []string{"Zk9xQ7mPv2LwT8", "sk_live_SUPERSECRET123456789"}
+	for b.Loop() {
+		Apply(data, secrets)
 	}
 }
 

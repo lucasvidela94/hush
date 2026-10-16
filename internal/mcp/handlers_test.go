@@ -17,7 +17,7 @@ type fakeElicitor struct {
 	err     error
 }
 
-func (f fakeElicitor) RequestElicitation(ctx context.Context, request mcp.ElicitationRequest) (*mcp.ElicitationResult, error) {
+func (f fakeElicitor) RequestElicitation(_ context.Context, _ mcp.ElicitationRequest) (*mcp.ElicitationResult, error) {
 	if f.err != nil {
 		return nil, f.err
 	}

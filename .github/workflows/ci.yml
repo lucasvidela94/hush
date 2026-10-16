@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: "1.26"
+
+      - name: Generate and verify
+        run: |
+          go generate ./...
+          git diff --exit-code
+          test -z "$(gofmt -l .)"
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Lint
+        run: go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2 run ./...
+
+      - name: Test
+        run: go test -race ./...
+
+      - name: Build
+        run: go build -o /dev/null ./cmd/hush

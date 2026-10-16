@@ -78,18 +78,20 @@ func scanDecimal(s string, secrets []string) bool {
 				on = on*8 + int(r-'0')
 			}
 		}
-		if dok && dn <= 255 && len(dec) < 4096 {
+		switch {
+		case dok && dn <= 255 && len(dec) < 4096:
 			dec = append(dec, byte(dn))
-		} else if check(dec) {
+		case check(dec):
 			return true
-		} else {
+		default:
 			dec = nil
 		}
-		if ook && len(oct) < 4096 {
+		switch {
+		case ook && len(oct) < 4096:
 			oct = append(oct, byte(on))
-		} else if check(oct) {
+		case check(oct):
 			return true
-		} else {
+		default:
 			oct = nil
 		}
 	}

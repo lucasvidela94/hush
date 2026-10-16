@@ -1,6 +1,7 @@
 package setup
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -22,7 +23,7 @@ func Harnesses() []Harness {
 		{
 			Name: "claude",
 			Kind: "cli",
-			Detect: func(home, pathEnv string) bool {
+			Detect: func(_, pathEnv string) bool {
 				return hasBinary(pathEnv, "claude")
 			},
 			Apply:   applyClaude,
@@ -44,7 +45,7 @@ func Harnesses() []Harness {
 		{
 			Name: "cursor",
 			Kind: "json",
-			Detect: func(home, pathEnv string) bool {
+			Detect: func(home, _ string) bool {
 				return exists(filepath.Join(home, ".cursor", "mcp.json"))
 			},
 			Apply: applyJSON(cursorPath, "mcpServers", func(command string) any {
@@ -57,7 +58,7 @@ func Harnesses() []Harness {
 		{
 			Name: "codex",
 			Kind: "manual",
-			Detect: func(home, pathEnv string) bool {
+			Detect: func(_, pathEnv string) bool {
 				return hasBinary(pathEnv, "codex")
 			},
 			Apply: nil,
@@ -94,8 +95,8 @@ func cursorPath(home string) string {
 	return filepath.Join(home, ".cursor", "mcp.json")
 }
 
-func applyClaude(home string, command string) (string, error) {
-	cmd := exec.Command("claude", "mcp", "add", "hush", "--", command, "serve")
+func applyClaude(_ string, command string) (string, error) {
+	cmd := exec.CommandContext(context.Background(), "claude", "mcp", "add", "hush", "--", command, "serve")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return "", fmt.Errorf("claude mcp add: %s: %w", string(out), err)
 	}

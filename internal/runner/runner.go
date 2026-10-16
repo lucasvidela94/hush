@@ -3,6 +3,7 @@ package runner
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"os"
 	"os/exec"
@@ -60,7 +61,8 @@ func execute(ctx context.Context, env []string, secrets []string, argv []string,
 	if err == nil {
 		return 0
 	}
-	if ee, ok := err.(*exec.ExitError); ok {
+	var ee *exec.ExitError
+	if errors.As(err, &ee) {
 		return ee.ExitCode()
 	}
 	return 1

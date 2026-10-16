@@ -59,7 +59,7 @@ func truncate(s string) string {
 	return s[:maxOutput] + "\n[hush: salida truncada]"
 }
 
-func (s *Server) handleCheck(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *Server) handleCheck(_ context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	names, err := stringList(request.GetArguments(), "names")
 	if err != nil {
 		return mcp.NewToolResultError(err.Error()), nil
@@ -80,7 +80,7 @@ func (s *Server) handleCheck(ctx context.Context, request mcp.CallToolRequest) (
 	return mcp.NewToolResultJSON(map[string][]string{"missing": missing, "present": present})
 }
 
-func (s *Server) handleList(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (s *Server) handleList(_ context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	values, err := s.store.Load()
 	if err != nil {
 		return mcp.NewToolResultError("hush: no se pudo leer el vault"), nil

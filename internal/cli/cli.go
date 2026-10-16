@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -38,6 +39,8 @@ func Run(argv []string, store vault.Store, stdin *os.File, stdout, stderr io.Wri
 	switch argv[0] {
 	case "set":
 		return set(argv[1:], store, stdin, stdout)
+	case "rm", "delete", "unset", "remove":
+		return remove(argv[1:], store, stdin, stdout, stderr)
 	case "check":
 		return check(argv[1:], store, stdout, stderr)
 	case "list":
@@ -104,6 +107,60 @@ func set(argv []string, store vault.Store, stdin *os.File, stdout io.Writer) int
 	if len(value) < redact.MinLength {
 		fmt.Fprintf(stdout, "hush: aviso: el valor tiene menos de %d caracteres y no se tapa en la salida\n", redact.MinLength)
 	}
+	return OK
+}
+
+func remove(argv []string, store vault.Store, stdin *os.File, stdout, stderr io.Writer) int {
+	names := []string{}
+	yes := false
+	for _, a := range argv {
+		if a == "--yes" || a == "-y" {
+			yes = true
+			continue
+		}
+		names = append(names, a)
+	}
+	if len(names) == 0 {
+		fmt.Fprintln(stderr, "uso: hush rm [--yes] NOMBRE...")
+		return Usage
+	}
+	lock, err := vault.Acquire(store.Dir())
+	if err != nil {
+		fmt.Fprintf(stderr, "hush: %s\n", err)
+		return Failed
+	}
+	defer lock.Release()
+	values, err := store.Load()
+	if err != nil {
+		fmt.Fprintln(stderr, "hush: no se pudo leer el vault")
+		return Failed
+	}
+	missing := []string{}
+	for _, n := range names {
+		if _, ok := values[n]; !ok {
+			missing = append(missing, n)
+		}
+	}
+	if len(missing) > 0 {
+		fmt.Fprintf(stderr, "hush: no existen: %s (no borré nada)\n", strings.Join(missing, ", "))
+		return Missing
+	}
+	if !yes && setup.IsTTY(stdin) {
+		fmt.Fprintf(stdout, "¿borrar %s? [s/N] ", strings.Join(names, ", "))
+		answer, _ := bufio.NewReader(stdin).ReadString('\n')
+		if a := strings.ToLower(strings.TrimSpace(answer)); a != "s" && a != "y" {
+			fmt.Fprintln(stdout, "hush: cancelado")
+			return Failed
+		}
+	}
+	for _, n := range names {
+		delete(values, n)
+	}
+	if err := store.Save(values); err != nil {
+		fmt.Fprintf(stderr, "hush: no se pudo guardar: %s\n", err)
+		return Failed
+	}
+	fmt.Fprintf(stdout, "hush: borrado: %s\n", strings.Join(names, ", "))
 	return OK
 }
 
@@ -243,6 +300,7 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, `hush — tus secretos, sin que el agente los vea.
 
   hush set NOMBRE                  guarda un valor (muestra * por caracter)
+  hush rm NOMBRE...                borra secretos (también: delete, unset, remove)
   hush check NOMBRE...             ¿están guardados? (solo nombres)
   hush list                        qué nombres hay guardados
   hush run [--only A,B | --all] -- cmd...  corre un comando con los valores inyectados
@@ -263,6 +321,7 @@ ej:
 
 var helpText = map[string]string{
 	"set":    "uso: hush set NOMBRE\nej: openssl rand -hex 24 | hush set MI_TOKEN\nGuarda un valor leyéndolo de tu terminal (muestra * por caracter) o de un pipe.",
+	"rm":     "uso: hush rm [--yes] NOMBRE...\nBorra secretos del vault (alias: delete, unset, remove). Pide confirmación en terminal salvo con --yes. Si falta algún nombre no borra nada.\nPara rotar un valor, volvé a correr hush set NOMBRE: lo reemplaza.",
 	"check":  "uso: hush check [--json] NOMBRE...\nDice qué nombres están guardados y cuáles faltan. Nunca muestra valores.",
 	"list":   "uso: hush list\nLista los nombres guardados. Nunca muestra valores.",
 	"run":    "uso: hush run [--only A,B | --all] -- comando...\nCorre el comando solo con los secretos indicados (todos solo con --all explícito) y tapa los valores en la salida.\nej: hush run --only API_KEY -- ./deploy.sh",

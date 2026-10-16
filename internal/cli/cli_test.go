@@ -65,6 +65,23 @@ func TestSetValidaNombreComoVariableDeEntorno(t *testing.T) {
 	}
 }
 
+func TestRmBorraConCualquierAlias(t *testing.T) {
+	for _, alias := range []string{"rm", "delete", "unset", "remove"} {
+		store := testStore(t, map[string]string{"A": "uno", "B": "dos"})
+		var out, errB bytes.Buffer
+		if code := Run([]string{alias, "A"}, store, nil, &out, &errB); code != OK {
+			t.Fatalf("%s: exit %d: %s", alias, code, errB.String())
+		}
+		values, _ := store.Load()
+		if _, ok := values["A"]; ok {
+			t.Errorf("%s: no borró A", alias)
+		}
+		if values["B"] != "dos" {
+			t.Errorf("%s: tocó B: %q", alias, values["B"])
+		}
+	}
+}
+
 func TestSetAvisaValorCorto(t *testing.T) {
 	store := testStore(t, nil)
 	code, out := setWith(t, store, "PIN", "ab")
@@ -77,6 +94,29 @@ func TestSetAvisaValorCorto(t *testing.T) {
 	_, out = setWith(t, store, "LARGO", "abcdefgh")
 	if strings.Contains(out, "aviso") {
 		t.Fatalf("aviso innecesario: %q", out)
+	}
+}
+
+func TestRmNombreAusenteNoBorraNada(t *testing.T) {
+	store := testStore(t, map[string]string{"A": "uno"})
+	var out, errB bytes.Buffer
+	if code := Run([]string{"rm", "A", "ZZZ"}, store, nil, &out, &errB); code != Missing {
+		t.Fatalf("exit %d", code)
+	}
+	values, _ := store.Load()
+	if values["A"] != "uno" {
+		t.Fatal("borró A aunque faltaba ZZZ")
+	}
+	if !strings.Contains(errB.String(), "ZZZ") {
+		t.Fatalf("no nombra el faltante: %q", errB.String())
+	}
+}
+
+func TestRmSinNombresEsUso(t *testing.T) {
+	store := testStore(t, nil)
+	var out, errB bytes.Buffer
+	if code := Run([]string{"rm"}, store, nil, &out, &errB); code != Usage {
+		t.Fatalf("exit %d", code)
 	}
 }
 

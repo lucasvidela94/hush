@@ -31,7 +31,10 @@ Concretely, hush:
 - **Short secrets.** Redaction skips values under 4 characters to avoid
   mangling normal output. PINs and short codes can leak through `run` output.
 - **Split transforms.** Redaction covers literal values plus base64, hex
-  (plain/upper/spaced), URL-encoding, and reversal. Anything that splits the
+  (plain/upper/spaced), URL-encoding, and reversal. It also catches
+  substrings of 6+ characters (at least 40% of the value), reordered characters
+  (`fold | sort`), and masked copies (`sed 's/[0-9]/#/g'`); expect false
+  positives on short secrets. Anything that splits the
   value with whitespace, wraps base64 lines, or re-encodes it (gzip,
   encryption) passes through. Enumeration is finite; exfiltration is not.
 - **Exfiltration by the child process.** A command run via `hush run` receives

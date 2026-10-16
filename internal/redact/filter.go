@@ -12,10 +12,12 @@ import (
 
 const nuke = "[REDACTED: posible secreto transformado]"
 
+const MinLength = 4
+
 func Apply(data []byte, secrets []string) []byte {
 	long := []string{}
 	for _, s := range secrets {
-		if len(s) >= 4 {
+		if len(s) >= MinLength {
 			long = append(long, s)
 		}
 	}

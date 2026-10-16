@@ -12,6 +12,7 @@ import (
 	"syscall"
 
 	"hush/internal/mcp"
+	"hush/internal/redact"
 	"hush/internal/runner"
 	"hush/internal/secret"
 	"hush/internal/setup"
@@ -73,6 +74,10 @@ func set(argv []string, store vault.Store, stdin *os.File, stdout io.Writer) int
 		fmt.Fprintln(stdout, "uso: hush set NOMBRE")
 		return Usage
 	}
+	if err := vault.ValidName(argv[0]); err != nil {
+		fmt.Fprintf(stdout, "hush: %s\n", err)
+		return Failed
+	}
 	value, err := secret.Read(stdin)
 	if err != nil || value == "" {
 		fmt.Fprintln(stdout, "hush: valor vacío, cancelado")
@@ -95,6 +100,9 @@ func set(argv []string, store vault.Store, stdin *os.File, stdout io.Writer) int
 		return Failed
 	}
 	fmt.Fprintf(stdout, "hush: %s guardado (0600)\n", argv[0])
+	if len(value) < redact.MinLength {
+		fmt.Fprintf(stdout, "hush: aviso: el valor tiene menos de %d caracteres y no se tapa en la salida\n", redact.MinLength)
+	}
 	return OK
 }
 

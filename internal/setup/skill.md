@@ -18,6 +18,7 @@ Nunca digas "pasame el valor". Siempre: "corre `hush set NOMBRE` en tu terminal"
 
 - Ninguna tool devuelve valores. `check`/`list` devuelven solo nombres.
 - `need` guarda sin mostrar. `run` inyecta en el hijo y redacta a `[REDACTED]`.
+- Los nombres también son contexto: `list` y `check` los muestran, y uno como `JIRATOKEN` ya dice qué sistema usa el humano. No los repitas fuera de lo necesario.
 - Si falta un secreto en modo no interactivo: indicá `hush set NOMBRE`, no lo pidas por chat.
 
 ## Vía MCP (dentro del harness)

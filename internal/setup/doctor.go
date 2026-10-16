@@ -38,8 +38,14 @@ func Doctor(home string, store vault.Store, version, command string, stdout io.W
 		}
 		if c.Detail == "" {
 			fmt.Fprintf(stdout, "  %s %s\n", mark, c.Name)
-		} else {
-			fmt.Fprintf(stdout, "  %s %s: %s\n", mark, c.Name, c.Detail)
+			continue
+		}
+		first, rest, _ := strings.Cut(c.Detail, "\n")
+		fmt.Fprintf(stdout, "  %s %s: %s\n", mark, c.Name, first)
+		for line := range strings.SplitSeq(rest, "\n") {
+			if line != "" {
+				fmt.Fprintf(stdout, "      %s\n", line)
+			}
 		}
 	}
 	return code

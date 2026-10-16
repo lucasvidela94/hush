@@ -51,6 +51,25 @@ func TestDoctorCasaVaciaAvisa(t *testing.T) {
 	}
 }
 
+func TestDoctorDetalleMultilineaNoRompeLaLista(t *testing.T) {
+	home := t.TempDir()
+	store := vault.New(filepath.Join(home, ".hush"))
+	var out bytes.Buffer
+	Doctor(home, store, "v9.9.9", "/bin/hush", &out)
+	for line := range strings.SplitSeq(strings.TrimRight(out.String(), "\n"), "\n") {
+		if strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "      ") &&
+			!strings.HasPrefix(line, "  ✓") && !strings.HasPrefix(line, "  −") && !strings.HasPrefix(line, "  ✗") {
+			t.Errorf("línea suelta rompe el layout: %q", line)
+		}
+		if !strings.HasPrefix(line, "  ") {
+			t.Errorf("línea sin sangría: %q", line)
+		}
+	}
+	if !strings.Contains(out.String(), "      args = [\"serve\"]") {
+		t.Fatalf("el snippet de codex no quedó indentado:\n%s", out.String())
+	}
+}
+
 func TestDoctorVaultPermisoMalo(t *testing.T) {
 	home := t.TempDir()
 	dir := filepath.Join(home, ".hush")

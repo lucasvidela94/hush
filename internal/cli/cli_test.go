@@ -31,6 +31,55 @@ func TestSetRechazaNombreInvalido(t *testing.T) {
 	}
 }
 
+func setWith(t *testing.T, store vault.Store, name, value string) (int, string) {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = w.WriteString(value)
+	_ = w.Close()
+	var out bytes.Buffer
+	code := Run([]string{"set", name}, store, r, &out, &out)
+	return code, out.String()
+}
+
+func TestSetValidaNombreComoVariableDeEntorno(t *testing.T) {
+	cases := []struct {
+		name string
+		ok   bool
+	}{
+		{"API_KEY", true},
+		{"_x1", true},
+		{"bad name", false},
+		{"1ABC", false},
+		{"A-B", false},
+		{"A.B", false},
+	}
+	for _, c := range cases {
+		store := testStore(t, nil)
+		code, _ := setWith(t, store, c.name, "x1234567")
+		if (code == OK) != c.ok {
+			t.Errorf("%q: exit %d, ok esperado %v", c.name, code, c.ok)
+		}
+	}
+}
+
+func TestSetAvisaValorCorto(t *testing.T) {
+	store := testStore(t, nil)
+	code, out := setWith(t, store, "PIN", "ab")
+	if code != OK {
+		t.Fatalf("exit %d", code)
+	}
+	if !strings.Contains(out, "aviso") {
+		t.Fatalf("sin aviso: %q", out)
+	}
+	_, out = setWith(t, store, "LARGO", "abcdefgh")
+	if strings.Contains(out, "aviso") {
+		t.Fatalf("aviso innecesario: %q", out)
+	}
+}
+
 func TestSetAceptaMultilinea(t *testing.T) {
 	store := testStore(t, nil)
 	r, w, _ := os.Pipe()

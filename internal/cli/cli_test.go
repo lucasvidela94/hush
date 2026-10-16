@@ -175,6 +175,34 @@ func TestRunOnlySinValorEsUso(t *testing.T) {
 	}
 }
 
+func TestRunOnlyFaltanteFallaSinCorrer(t *testing.T) {
+	cases := []struct {
+		name string
+		only string
+		want string
+	}{
+		{"uno ausente", "NOPE", "NOPE"},
+		{"uno presente y otro ausente", "A,NOPE", "NOPE"},
+	}
+	for _, c := range cases {
+		store := testStore(t, map[string]string{"A": "valor-a-largo"})
+		var out, errB bytes.Buffer
+		code := Run([]string{"run", "--only", c.only, "--", "echo", "corrio"}, store, nil, &out, &errB)
+		if code != Missing {
+			t.Errorf("%s: exit %d, esperaba %d", c.name, code, Missing)
+		}
+		if strings.Contains(out.String(), "corrio") {
+			t.Errorf("%s: corrió el comando", c.name)
+		}
+		if !strings.Contains(errB.String(), c.want) || !strings.Contains(errB.String(), "hush set") {
+			t.Errorf("%s: mensaje sin nombre ni pista: %q", c.name, errB.String())
+		}
+		if strings.Contains(errB.String(), "valor-a-largo") {
+			t.Errorf("%s: valor visible", c.name)
+		}
+	}
+}
+
 func TestRunSinOnlyNiAllEsUso(t *testing.T) {
 	store := testStore(t, map[string]string{"A": "uno"})
 	var out, errB bytes.Buffer

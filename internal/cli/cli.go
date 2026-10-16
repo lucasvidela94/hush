@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sort"
 	"strings"
 	"syscall"
 
@@ -195,6 +196,17 @@ func run(argv []string, store vault.Store, stdin *os.File, stdout, stderr io.Wri
 	if err != nil {
 		fmt.Fprintln(stderr, "hush: no se pudo leer el vault")
 		return Failed
+	}
+	missing := []string{}
+	for k := range only {
+		if _, ok := values[k]; !ok {
+			missing = append(missing, k)
+		}
+	}
+	if len(missing) > 0 {
+		sort.Strings(missing)
+		fmt.Fprintf(stderr, "hush: faltan: %s → pedí al humano: hush set %s\n", strings.Join(missing, ", "), missing[0])
+		return Missing
 	}
 	extra := map[string]string{}
 	for k, v := range values {

@@ -25,10 +25,33 @@ func Apply(data []byte, secrets []string) []byte {
 		return data
 	}
 	out := replaceLiterals(data, long)
-	if scanEncoded(string(data), long) || scanSpaceless(out, long) || scanStrided(out, long) || scanStridedRaw(string(data), long) || scanDecimal(string(data), long) {
-		return []byte(nuke)
+	if !transformed(data, out, long) {
+		return out
 	}
-	return out
+	return redactByLine(data, long)
+}
+
+func transformed(data, out []byte, secrets []string) bool {
+	return scanEncoded(string(data), secrets) || scanSpaceless(out, secrets) || scanStrided(out, secrets) || scanStridedRaw(string(data), secrets) || scanDecimal(string(data), secrets)
+}
+
+func redactByLine(data []byte, secrets []string) []byte {
+	var kept bytes.Buffer
+	flagged := false
+	for _, line := range bytes.SplitAfter(data, []byte("\n")) {
+		out := replaceLiterals(line, secrets)
+		if transformed(line, out, secrets) {
+			flagged = true
+			kept.WriteString(nuke + "\n")
+			continue
+		}
+		kept.Write(out)
+	}
+	result := kept.Bytes()
+	if !flagged || transformed(result, result, secrets) {
+		return []byte(nuke + "\n")
+	}
+	return result
 }
 
 func scanStrided(redacted []byte, secrets []string) bool {

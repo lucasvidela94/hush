@@ -20,32 +20,55 @@ func TestApply(t *testing.T) {
 		{"reversa", "token 321cba", []string{"abc123"}, "token [REDACTED]"},
 		{"hex", "token 616263313233", []string{"abc123"}, "token [REDACTED]"},
 		{"hex espaciado", "token 61 62 63 31 32 33", []string{"abc123"}, "token [REDACTED]"},
-		{"split con espacios", "token a b c 1 2 3", []string{"abc123"}, "[REDACTED: posible secreto transformado]"},
-		{"mixto literal+split", "abc123 y a b c 1 2 3", []string{"abc123"}, "[REDACTED: posible secreto transformado]"},
-		{"basic auth", "dXNlcjpzdXBlci1zZWNyZXQtd29yaw==", []string{"super-secret-work"}, "[REDACTED: posible secreto transformado]"},
+		{"split con espacios", "token a b c 1 2 3", []string{"abc123"}, "[REDACTED: posible secreto transformado]\n"},
+		{"mixto literal+split", "abc123 y a b c 1 2 3", []string{"abc123"}, "[REDACTED: posible secreto transformado]\n"},
+		{"basic auth", "dXNlcjpzdXBlci1zZWNyZXQtd29yaw==", []string{"super-secret-work"}, "[REDACTED: posible secreto transformado]\n"},
 		{"mayúsculas", "token ABC123", []string{"abc123"}, "token [REDACTED]"},
-		{"mayúsculas + espaciado", "token A B C D E F 1 2", []string{"abcdef12"}, "[REDACTED: posible secreto transformado]"},
+		{"mayúsculas + espaciado", "token A B C D E F 1 2", []string{"abcdef12"}, "[REDACTED: posible secreto transformado]\n"},
 		{"sin alfanuméricos no anula", "hola mundo", []string{"!@#$%^&*()"}, "hola mundo"},
 		{"corto con espacios pasa", "token a b c", []string{"abc"}, "token a b c"},
-		{"base32", "token ONSWG4TFOQYTEMY=", []string{"secret123"}, "[REDACTED: posible secreto transformado]"},
-		{"decimal por byte", "token 115 101 99 114 101 116 49 50 51", []string{"secret123"}, "[REDACTED: posible secreto transformado]"},
+		{"base32", "token ONSWG4TFOQYTEMY=", []string{"secret123"}, "[REDACTED: posible secreto transformado]\n"},
+		{"decimal por byte", "token 115 101 99 114 101 116 49 50 51", []string{"secret123"}, "[REDACTED: posible secreto transformado]\n"},
 		{"hex 2char largo", "token 6d 79 73 65 63 72 65 74 6b 65 79", []string{"mysecretkey"}, "token [REDACTED]"},
-		{"intercalado", "token sZ3ZcZrZ3ZtZ9Z9Z", []string{"s3cr3t99"}, "[REDACTED: posible secreto transformado]"},
-		{"reverso espaciado", "token 3 2 1 T E R C E S R E P U S", []string{"SUPERSECRET123"}, "[REDACTED: posible secreto transformado]"},
-		{"sk_live stride", "token sZkZ_ZlZiZvZeZ_ZSZUZPZEZRZSZEZCZRZEZTZ1Z2Z3Z", []string{"sk_live_SUPERSECRET123"}, "[REDACTED: posible secreto transformado]"},
-		{"percent-hex", "token %6d%79%73%65%63%72%65%74%6b%65%79", []string{"mysecretkey"}, "[REDACTED: posible secreto transformado]"},
-		{"octal", "token 155 171 163 145 143 162 145 164 153 145 171", []string{"mysecretkey"}, "[REDACTED: posible secreto transformado]"},
-		{"base64 del reverso", "token MzIxdGVyY2Vz", []string{"secret123"}, "[REDACTED: posible secreto transformado]"},
-		{"hex del reverso", "token 3332312d646c726f772d6f6c6c6568", []string{"hello-world-123"}, "[REDACTED: posible secreto transformado]"},
-		{"token= con prefijo", "token=dXNlcjpzdXBlci1zZWNyZXQtd29yaw==", []string{"super-secret-work"}, "[REDACTED: posible secreto transformado]"},
-		{"base64url", "token=Pj4-Pz8_Pj4-Pz8_", []string{">>>???>>>???"}, "[REDACTED: posible secreto transformado]"},
-		{"base64 con wrap", "dXNlcjpzdXBl\nci1zZWNyZXQtd29yaw==", []string{"super-secret-work"}, "[REDACTED: posible secreto transformado]"},
-		{"doble base64", "ZFhObGNqcHpkWEJsY2kxelpXTnlaWFF0ZDI5eWF3PT0=", []string{"super-secret-work"}, "[REDACTED: posible secreto transformado]"},
+		{"intercalado", "token sZ3ZcZrZ3ZtZ9Z9Z", []string{"s3cr3t99"}, "[REDACTED: posible secreto transformado]\n"},
+		{"reverso espaciado", "token 3 2 1 T E R C E S R E P U S", []string{"SUPERSECRET123"}, "[REDACTED: posible secreto transformado]\n"},
+		{"sk_live stride", "token sZkZ_ZlZiZvZeZ_ZSZUZPZEZRZSZEZCZRZEZTZ1Z2Z3Z", []string{"sk_live_SUPERSECRET123"}, "[REDACTED: posible secreto transformado]\n"},
+		{"percent-hex", "token %6d%79%73%65%63%72%65%74%6b%65%79", []string{"mysecretkey"}, "[REDACTED: posible secreto transformado]\n"},
+		{"octal", "token 155 171 163 145 143 162 145 164 153 145 171", []string{"mysecretkey"}, "[REDACTED: posible secreto transformado]\n"},
+		{"base64 del reverso", "token MzIxdGVyY2Vz", []string{"secret123"}, "[REDACTED: posible secreto transformado]\n"},
+		{"hex del reverso", "token 3332312d646c726f772d6f6c6c6568", []string{"hello-world-123"}, "[REDACTED: posible secreto transformado]\n"},
+		{"token= con prefijo", "token=dXNlcjpzdXBlci1zZWNyZXQtd29yaw==", []string{"super-secret-work"}, "[REDACTED: posible secreto transformado]\n"},
+		{"base64url", "token=Pj4-Pz8_Pj4-Pz8_", []string{">>>???>>>???"}, "[REDACTED: posible secreto transformado]\n"},
+		{"base64 con wrap", "dXNlcjpzdXBl\nci1zZWNyZXQtd29yaw==", []string{"super-secret-work"}, "[REDACTED: posible secreto transformado]\n"},
+		{"doble base64", "ZFhObGNqcHpkWEJsY2kxelpXTnlaWFF0ZDI5eWF3PT0=", []string{"super-secret-work"}, "[REDACTED: posible secreto transformado]\n"},
 		{"substring ordenado", "largo y larg", []string{"larg", "largo"}, "[REDACTED] y [REDACTED]"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			got := string(Apply([]byte(tc.data), tc.secrets))
+			if got != tc.want {
+				t.Fatalf("got %q want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestApplyPorLinea(t *testing.T) {
+	const marker = "[REDACTED: posible secreto transformado]\n"
+	secret := "super-secret-work"
+	cases := []struct {
+		name string
+		data string
+		want string
+	}{
+		{"conserva lo no secreto", "A\ndXNlcjpzdXBlci1zZWNyZXQtd29yaw==\nB\n", "A\n" + marker + "B\n"},
+		{"sin newline final", "A\ndXNlcjpzdXBlci1zZWNyZXQtd29yaw==", "A\n" + marker},
+		{"literal y transformado", "uno " + secret + "\ndXNlcjpzdXBlci1zZWNyZXQtd29yaw==\n", "uno [REDACTED]\n" + marker},
+		{"repartido en líneas cae a todo", "dXNlcjpzdXBl\nci1zZWNyZXQtd29yaw==\n", marker},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := string(Apply([]byte(tc.data), []string{secret}))
 			if got != tc.want {
 				t.Fatalf("got %q want %q", got, tc.want)
 			}

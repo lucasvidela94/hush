@@ -36,6 +36,14 @@ Concretely, hush:
   encryption) passes through. Enumeration is finite; exfiltration is not.
 - **Exfiltration by the child process.** A command run via `hush run` receives
   real values and can send them anywhere. Only run commands you trust.
+- **Values persisted by the child.** If a command run via `hush run` writes
+  the value to disk (an MCP config, `.env`, a git remote URL), redaction does
+  not cover later commands that read it back outside hush (`claude mcp get`,
+  `printenv`, `cat`). Verify with commands that do not print the config, read
+  back through `hush run`, and prefer env-var references over stored values.
+- **Confirmation differs by path.** `hush_run` over MCP always asks a human to
+  confirm; `hush run` from a shell only goes through the harness's normal
+  permission prompt.
 - **Elicited values and the MCP client.** Values typed into a harness prompt
   travel through the client app (never the model in compliant clients).
   Maximum paranoia: provision with `hush set` in your own terminal.

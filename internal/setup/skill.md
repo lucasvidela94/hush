@@ -20,6 +20,15 @@ Nunca digas "pasame el valor". Siempre: "corre `hush set NOMBRE` en tu terminal"
 - `need` guarda sin mostrar. `run` inyecta en el hijo y redacta a `[REDACTED]`.
 - Si falta un secreto en modo no interactivo: indicá `hush set NOMBRE`, no lo pidas por chat.
 
+## Nunca leas de vuelta
+
+La redacción solo cubre lo que pasa por `hush run`/`hush stdin`. Si un comando guarda el valor en un archivo (config de un MCP, `.env`, un remote de git con token), un comando posterior que lo imprima va directo al transcript.
+
+- Después de cablear un secreto, verificá con un comando que no imprima la configuración (`claude mcp list`), o leelo a través de `hush run`.
+- No ejecutes fuera de hush: `claude mcp get`, `config list`, `env`, `printenv`, `cat` de configs, `git remote -v` con token en la URL.
+- Preferí referencias por variable de entorno (`${NOMBRE}`) en vez de valores persistidos, y lanzá la herramienta con `hush run --only NOMBRE -- ...`.
+- Si un valor llegó al transcript igual, avisale al humano que lo rote.
+
 ## Vía MCP (dentro del harness)
 
 ```
@@ -33,6 +42,8 @@ hush_run(command[], only[]?, all?, stdin_name?) → ejecuta con inyección + red
                                  stdin_name: para comandos que leen por stdin
                                  (ej: ["npx","wrangler","secret","put","X"] con stdin_name X)
 ```
+
+La confirmación humana es de la vía MCP. `hush run` por el shell solo pasa por el permiso normal del harness.
 
 ## Vía CLI (terminal del humano o tu shell)
 

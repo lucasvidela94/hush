@@ -1,17 +1,65 @@
 version: "2"
 linters:
+  default: none
   enable:
     - errcheck
+    - errorlint
     - govet
     - ineffassign
     - staticcheck
     - unused
+    - gosec
+    - noctx
+    - bodyclose
+    - contextcheck
+    - gocritic
+    - revive
+    - cyclop
+    - depguard
   settings:
     errcheck:
       exclude-functions:
         - fmt.Fprint
         - fmt.Fprintf
         - fmt.Fprintln
+    cyclop:
+      max-complexity: 25
+    depguard:
+      rules:
+        main:
+          deny:
+            - pkg: github.com/pkg/errors
+              desc: usar errors y fmt.Errorf con %w
+    gosec:
+      excludes:
+        - G204 # hush run existe para lanzar el comando que le pasan
+        - G301 # directorios de config de usuario, 0o755 a propósito
+        - G302 # chmod 0o700 sobre el directorio del vault
+        - G304 # rutas de config derivadas de $HOME o de flags
+        - G306 # skill 0o644 y binario ejecutable 0o755
+        - G602 # falso positivo: argv se valida con len antes de indexar
+        - G703 # rutas de config derivadas de $HOME o de flags
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: dot-imports
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: increment-decrement
+        - name: var-declaration
+        - name: indent-error-flow
+        - name: errorf
+        - name: empty-block
+        - name: superfluous-else
+        - name: unused-parameter
+        - name: unreachable-code
+        - name: redefines-builtin-id
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters: [gosec, cyclop]
 formatters:
   enable:
     - gofmt

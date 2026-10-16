@@ -2,6 +2,7 @@ package secret
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -58,7 +59,7 @@ func readPassword(fd int, w *os.File) (string, error) {
 		r, _, err := br.ReadRune()
 		if err != nil {
 			fmt.Fprintln(w)
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				return string(runes), nil
 			}
 			return string(runes), err
@@ -70,7 +71,7 @@ func readPassword(fd int, w *os.File) (string, error) {
 		case 3: // Ctrl-C
 			_ = term.Restore(fd, oldState)
 			fmt.Fprintln(w)
-			os.Exit(130)
+			os.Exit(130) //nolint:gocritic // el terminal ya se restauró arriba
 			return "", nil
 		case 4: // Ctrl-D
 			if len(runes) == 0 {

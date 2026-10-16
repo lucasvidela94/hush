@@ -3,7 +3,7 @@ PKG := ./...
 
 .PHONY: check fmt vet lint test build hook generate
 
-check: generate fmt vet test build
+check: generate fmt vet lint test build
 
 generate:
 	go generate ./...
@@ -19,7 +19,7 @@ lint:
 	golangci-lint run $(PKG)
 
 test:
-	go test $(PKG)
+	go test -race $(PKG)
 
 build:
 	go build -o $(BIN) ./cmd/hush

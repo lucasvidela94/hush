@@ -5,9 +5,11 @@ import (
 	"encoding/base32"
 	"encoding/base64"
 	"encoding/hex"
+	"math"
 	"net/url"
 	"sort"
 	"strings"
+	"unicode"
 )
 
 const nuke = "[REDACTED: posible secreto transformado]"
@@ -32,7 +34,7 @@ func Apply(data []byte, secrets []string) []byte {
 }
 
 func transformed(data, out []byte, secrets []string) bool {
-	return scanEncoded(string(data), secrets) || scanSpaceless(out, secrets) || scanStrided(out, secrets) || scanStridedRaw(string(data), secrets) || scanDecimal(string(data), secrets)
+	return scanEncoded(string(data), secrets) || scanSpaceless(out, secrets) || scanStrided(out, secrets) || scanStridedRaw(string(data), secrets) || scanDecimal(string(data), secrets) || scanPermuted(out, secrets) || scanMasked(out, secrets)
 }
 
 func redactByLine(data []byte, secrets []string) []byte {
@@ -52,6 +54,99 @@ func redactByLine(data []byte, secrets []string) []byte {
 		return []byte(nuke + "\n")
 	}
 	return result
+}
+
+const (
+	windowMin     = 6
+	windowShare   = 0.4
+	windowMaxLen  = 256
+	scanMinLen    = 8
+	maskedMatches = 0.6
+)
+
+func windowLen(n int) int {
+	return max(windowMin, int(math.Ceil(float64(n)*windowShare)))
+}
+
+func windows(s string) []string {
+	n := windowLen(len(s))
+	if len(s) <= n || len(s) > windowMaxLen {
+		return nil
+	}
+	out := make([]string, 0, len(s)-n+1)
+	for i := 0; i+n <= len(s); i++ {
+		out = append(out, s[i:i+n])
+	}
+	return out
+}
+
+func scanPermuted(redacted []byte, secrets []string) bool {
+	flat := bytes.Map(func(r rune) rune {
+		if unicode.IsSpace(r) {
+			return -1
+		}
+		return r
+	}, redacted)
+	for _, s := range secrets {
+		want := []byte(strings.Join(strings.Fields(s), ""))
+		if len(want) < scanMinLen || len(flat) < len(want) {
+			continue
+		}
+		var need, have [256]int
+		for _, b := range want {
+			need[b]++
+		}
+		diff := 0
+		for _, n := range need {
+			if n > 0 {
+				diff++
+			}
+		}
+		for i, b := range flat {
+			switch have[b] {
+			case need[b]:
+				diff++
+			case need[b] - 1:
+				diff--
+			}
+			have[b]++
+			if i >= len(want) {
+				out := flat[i-len(want)]
+				switch have[out] {
+				case need[out]:
+					diff++
+				case need[out] + 1:
+					diff--
+				}
+				have[out]--
+			}
+			if i >= len(want)-1 && diff == 0 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func scanMasked(redacted []byte, secrets []string) bool {
+	for _, s := range secrets {
+		if len(s) < scanMinLen || len(s) > windowMaxLen {
+			continue
+		}
+		budget := len(s) - int(math.Ceil(float64(len(s))*maskedMatches))
+		for i := 0; i+len(s) <= len(redacted); i++ {
+			miss := 0
+			for j := 0; j < len(s) && miss <= budget; j++ {
+				if redacted[i+j] != s[j] {
+					miss++
+				}
+			}
+			if miss <= budget {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func scanStrided(redacted []byte, secrets []string) bool {
@@ -127,6 +222,7 @@ func replaceLiterals(data []byte, secrets []string) []byte {
 	patterns := []string{}
 	for _, s := range secrets {
 		patterns = append(patterns, s)
+		patterns = append(patterns, windows(s)...)
 		for _, line := range strings.Split(s, "\n") {
 			if line = strings.TrimSpace(line); len(line) >= 4 {
 				patterns = append(patterns, line)

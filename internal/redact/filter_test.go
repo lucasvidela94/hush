@@ -3,6 +3,7 @@ package redact
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestApply(t *testing.T) {
@@ -73,6 +74,64 @@ func TestApplyPorLinea(t *testing.T) {
 				t.Fatalf("got %q want %q", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestApplySubstringPermutacionYMascara(t *testing.T) {
+	const marker = "[REDACTED: posible secreto transformado]\n"
+	secret := "Zk9xQ7mPv2LwT8"
+	cases := []struct {
+		name   string
+		data   string
+		hidden []string
+	}{
+		{"cut -c3-9", "9xQ7mPv\n", []string{"9xQ7mP", "xQ7mPv"}},
+		{"ventana de 6", "ver: Zk9xQ7 fin\n", []string{"Zk9xQ7"}},
+		{"permutación ordenada", "2789LPQTZkmvwx\n", []string{"2789LPQTZkmvwx"}},
+		{"permutación uno por línea", "2\n7\n8\n9\nL\nP\nQ\nT\nZ\nk\nm\nv\nw\nx\n", nil},
+		{"máscara de dígitos", "Zk#xQ#mPv#LwT#\n", []string{"Zk#xQ#mPv#LwT#"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := string(Apply([]byte(tc.data), []string{secret}))
+			if got == tc.data {
+				t.Fatalf("pasó sin tocar: %q", got)
+			}
+			for _, h := range tc.hidden {
+				if strings.Contains(got, h) {
+					t.Fatalf("quedó visible %q en %q", h, got)
+				}
+			}
+			if strings.Contains(got, "REDACTED") == false && got != marker {
+				t.Fatalf("sin marcador: %q", got)
+			}
+		})
+	}
+}
+
+func TestApplyNoFalsosPositivos(t *testing.T) {
+	secret := "Zk9xQ7mPv2LwT8"
+	for _, data := range []string{
+		"build ok\n2 files changed\n",
+		"Zk9x\n",
+		"listening on port 8080\n",
+		"qwertyuiopasdf\n",
+	} {
+		if got := string(Apply([]byte(data), []string{secret})); got != data {
+			t.Errorf("alteró %q → %q", data, got)
+		}
+	}
+}
+
+func TestApplySalidaGrandeEsRapida(t *testing.T) {
+	data := []byte(strings.Repeat("linea de log normal sin nada raro 12345\n", 1<<15))
+	start := time.Now()
+	secrets := []string{"Zk9xQ7mPv2LwT8", "sk_live_SUPERSECRET123456789"}
+	scanPermuted(data, secrets)
+	scanMasked(data, secrets)
+	replaceLiterals(data, secrets)
+	if d := time.Since(start); d > 5*time.Second {
+		t.Fatalf("tardó %s", d)
 	}
 }
 

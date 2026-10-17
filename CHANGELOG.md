@@ -1,5 +1,38 @@
 # Changelog
 
+## v0.6.0
+
+Cambios de comportamiento (revisá tus scripts):
+
+- `hush run --only A,B` sale con código 3 y no ejecuta el comando si falta
+  algún secreto (antes corría con la variable sin definir).
+- `hush set` rechaza nombres que no sean `[A-Za-z_][A-Za-z0-9_]*`. Los
+  secretos ya guardados con otros nombres siguen funcionando.
+- Cuando se detecta un secreto transformado, solo se tapan las líneas
+  afectadas y el marcador termina en newline (antes se reemplazaba toda la
+  salida, sin newline).
+
+Nuevo:
+
+- `hush rm NOMBRE...` (alias `delete`, `unset`, `remove`) con confirmación en
+  terminal y `--yes`. Si falta algún nombre no borra nada.
+- `hush set` avisa si el valor tiene menos de 4 caracteres (no se tapa).
+- `hush run` avisa, con nombre y ruta pero sin el valor, si el comando guardó
+  un secreto en texto plano en `~/.claude.json`, `.env*`, `.mcp.json`,
+  `opencode.json` o la config de cursor/opencode.
+- Redacción de substrings (6+ caracteres y al menos 40% del valor),
+  permutaciones de caracteres y copias enmascaradas. Puede dar falsos
+  positivos con secretos cortos.
+- `hush doctor` ya no rompe el layout con los snippets multilínea.
+- `SKILL.md` y `SECURITY.md`: guía de "nunca leas de vuelta" y nuevos límites.
+
+Rendimiento:
+
+- `redact.Apply` deja de ser cuadrático: 1 MB de salida pasó de ~18 s a
+  menos de 0,1 s.
+
+Interno: CI en cada PR (vet, golangci-lint estricto, `test -race`).
+
 ## v0.5.6
 
 - Rotación de clave de firma: se agrega segunda pubkey a `releasePubKeys`.

@@ -329,7 +329,7 @@ var helpText = map[string]string{
 	"export": "uso: hush export [NOMBRES...]\nMuestra valores en TU terminal. Se niega si la salida no es una terminal (un pty no prueba que haya un humano: ver SECURITY.md).",
 	"serve":  "uso: hush serve\nServidor MCP (stdio) para tu harness de IA. Registralo con: hush setup",
 	"setup":  "uso: hush setup [--yes]\nCon terminal: wizard que detecta tus harnesses y te propone registrar el servidor MCP (con backup). Sin terminal o con --yes: instala skills y muestra cómo conectar a mano.",
-	"update": "uso: hush update\nDescarga la última versión desde GitHub releases (verificada por checksum) y la instala.",
+	"update": "uso: hush update\nInstala la última versión con npm (npm i -g hush-secrets). Necesita npm en el PATH.",
 	"status": "uso: hush status\nMuestra versión, ubicación del vault y skills instalados.",
 	"doctor": "uso: hush doctor\nChequea binario, vault, skills y registro MCP. Exit 0 si está todo bien.",
 }

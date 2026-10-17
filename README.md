@@ -18,7 +18,7 @@ redaction. If your adversary is the agent itself, you need OS-level isolation
 ```bash
 npm i -g --allow-scripts=hush-secrets hush-secrets  # installs binary + skill
 hush set MY_API_KEY            # in YOUR terminal, never in chat
-hush update                    # self-update from GitHub releases
+hush update                    # self-update via npm (needs npm on PATH)
 ```
 
 ## Why

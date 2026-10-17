@@ -40,8 +40,9 @@ func transformed(data, out []byte, secrets []string) bool {
 func redactByLine(data []byte, secrets []string) []byte {
 	var kept bytes.Buffer
 	flagged := false
+	patterns := literalPatterns(secrets)
 	for _, line := range bytes.SplitAfter(data, []byte("\n")) {
-		out := replaceLiterals(line, secrets)
+		out := applyPatterns(line, patterns)
 		if transformed(line, out, secrets) {
 			flagged = true
 			kept.WriteString(nuke + "\n")
@@ -219,6 +220,20 @@ func scanDecimal(s string, secrets []string) bool {
 }
 
 func replaceLiterals(data []byte, secrets []string) []byte {
+	return applyPatterns(data, literalPatterns(secrets))
+}
+
+func applyPatterns(data []byte, patterns [][]byte) []byte {
+	out := data
+	for _, p := range patterns {
+		if bytes.Contains(out, p) {
+			out = bytes.ReplaceAll(out, p, []byte("[REDACTED]"))
+		}
+	}
+	return out
+}
+
+func literalPatterns(secrets []string) [][]byte {
 	patterns := []string{}
 	for _, s := range secrets {
 		patterns = append(patterns, s)
@@ -245,13 +260,11 @@ func replaceLiterals(data []byte, secrets []string) []byte {
 		)
 	}
 	sort.Slice(patterns, func(i, j int) bool { return len(patterns[i]) > len(patterns[j]) })
-	out := data
-	for _, p := range patterns {
-		if bytes.Contains(out, []byte(p)) {
-			out = bytes.ReplaceAll(out, []byte(p), []byte("[REDACTED]"))
-		}
+	raw := make([][]byte, len(patterns))
+	for i, p := range patterns {
+		raw[i] = []byte(p)
 	}
-	return out
+	return raw
 }
 
 func scanEncoded(s string, secrets []string) bool {
@@ -281,15 +294,13 @@ func scanEncoded(s string, secrets []string) bool {
 func encodedRuns(s string) []string {
 	words := strings.Fields(s)
 	runs := []string{}
-	current := ""
+	const maxRun = 8192
+	var current strings.Builder
 	flush := func() {
-		if len(current) >= 16 && len(runs) < 200 {
-			if len(current) > 8192 {
-				current = current[:8192]
-			}
-			runs = append(runs, current)
+		if current.Len() >= 16 && len(runs) < 200 {
+			runs = append(runs, current.String())
 		}
-		current = ""
+		current.Reset()
 	}
 	for _, w := range words {
 		subs := []string{}
@@ -308,7 +319,9 @@ func encodedRuns(s string) []string {
 			if len(part) >= 8 && len(part) <= 8192 && len(runs) < 200 && standsAlone(part) {
 				runs = append(runs, part)
 			}
-			current += part
+			if room := maxRun - current.Len(); room > 0 {
+				current.WriteString(part[:min(room, len(part))])
+			}
 		}
 		if isolated {
 			flush()

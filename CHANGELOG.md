@@ -36,8 +36,8 @@ Interno: CI en cada PR (vet, golangci-lint estricto, `test -race`).
 ## v0.5.6
 
 - Rotación de clave de firma: se agrega segunda pubkey a `releasePubKeys`.
-  Los binarios ≤v0.5.3 rechazan la firma nueva (fail-closed) y piden
-  reinstalar por npm una vez. v0.5.5 quedó solo en npm (sin GitHub Release).
+  Los binarios ≤v0.5.5 rechazan la firma nueva (fail-closed) y piden
+  reinstalar por npm una vez (`npm i -g hush-secrets@latest`). v0.5.5 quedó solo en npm (sin GitHub Release).
 
 ## v0.5.5
 

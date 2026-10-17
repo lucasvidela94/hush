@@ -227,7 +227,7 @@ func (u *SelfUpdater) verifyReleaseSignature(ctx context.Context, base string, s
 			return nil
 		}
 	}
-	return fmt.Errorf("la firma no coincide con ninguna clave conocida")
+	return fmt.Errorf("la firma no coincide con ninguna clave conocida de esta versión: reinstalá una vez con npm i -g hush-secrets@latest")
 }
 
 func (u *SelfUpdater) download(ctx context.Context, url string) ([]byte, error) {

@@ -99,9 +99,17 @@ be added — only generic transforms.
   maintainer y en el secret `HUSH_SIGN_PRIV` de CI. CI firma automáticamente
   cada release; sin secreto, el release falla (fail-closed).
 - `internal/update/pubkey.go` embebe la lista de claves públicas aceptadas.
-- Rotación: agregar la nueva clave a la lista, publicar un release (migra a
-  todos los que actualizan), y después rotar el secret. Nunca reutilizar una
-  clave expuesta en un transcript.
+- Rotación: agregar la nueva clave a la lista, publicar un release firmado con
+  una clave que el release anterior ya conozca (migra a todos los que
+  actualizan), y recién después rotar el secret. El job `signing-compat` del
+  workflow de release lo hace cumplir: si la clave de firma no está en el
+  `pubkey.go` del tag anterior, el release se corta antes de publicar. Nunca
+  reutilizar una clave expuesta en un transcript.
+- Clave de reserva: la lista incluye una tercera clave pública cuya privada
+  vive solo offline (no está en CI). Si se pierde o compromete la clave
+  activa, se firma un release puente con la reserva: los binarios que ya la
+  llevan embebida lo aceptan y no hace falta reinstalar por npm. Después de
+  usarla hay que generar otra reserva y distribuirla en ese mismo release.
 - Binarios v0.4.1 llevan la clave vieja (privada perdida): no verifican
   firmas nuevas. Reinstalar por npm (`npm i -g hush-secrets`).
 

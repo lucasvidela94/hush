@@ -1,6 +1,7 @@
 package update
 
 import (
+	"encoding/hex"
 	"os"
 	"testing"
 )
@@ -18,6 +19,22 @@ func TestKeysFromSourceLeeLaListaReal(t *testing.T) {
 		if got[i] != releasePubKeys[i] {
 			t.Fatalf("clave %d distinta", i)
 		}
+	}
+}
+
+func TestClavesDeReleaseSonValidasYUnicas(t *testing.T) {
+	if len(releasePubKeys) < 3 {
+		t.Fatalf("hay %d claves; se espera activa, anterior y reserva", len(releasePubKeys))
+	}
+	seen := map[string]bool{}
+	for _, k := range releasePubKeys {
+		if _, err := hex.DecodeString(k); err != nil || len(k) != 64 {
+			t.Fatalf("clave inválida: %q", k)
+		}
+		if seen[k] {
+			t.Fatalf("clave duplicada: %q", k)
+		}
+		seen[k] = true
 	}
 }
 

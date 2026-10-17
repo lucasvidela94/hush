@@ -1,14 +1,15 @@
 # Changelog
 
-## Unreleased
+## v0.6.1
 
 - `hush update` ahora delega en npm: consulta la última versión y corre
-  `npm install -g hush-secrets@VERSION`. Se eliminan las claves de firma
-  embebidas, `hush-sign` y `checksums.txt.sig`: ya no hay claves que rotar ni
-  que puedan dejar a los usuarios sin actualizar.
-- Quienes tengan ≤v0.6.0 deben reinstalar una vez con
-  `npm i -g hush-secrets@latest`, porque su `hush update` verifica una firma
-  que los releases nuevos ya no publican.
+  `npm install -g hush-secrets@VERSION`. Necesita npm en el PATH. Se eliminan
+  las claves de firma embebidas, `hush-sign` y `checksums.txt.sig`: ya no hay
+  claves que rotar ni que puedan dejar a los usuarios sin actualizar.
+- **Reinstalá una vez** si tenés ≤v0.6.0: su `hush update` verifica una firma
+  que los releases nuevos ya no publican y va a pedir
+  `npm i -g hush-secrets@latest`. De v0.6.1 en adelante `hush update` funciona
+  solo.
 
 ## v0.6.0
 

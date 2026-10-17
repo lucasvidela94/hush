@@ -1,16 +1,9 @@
 package update
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"io"
-	"net/http"
-	"net/http/httptest"
-	"os"
-	"path/filepath"
+	"errors"
+	"os/exec"
 	"strings"
 	"testing"
 )
@@ -44,157 +37,89 @@ func TestNormalizeVersion(t *testing.T) {
 	}
 }
 
-func TestChecksumFor(t *testing.T) {
-	sums := "aaa  hush-linux-amd64.gz\nbbb  otro\n"
-	got, err := checksumFor(sums, "hush-linux-amd64.gz")
-	if err != nil || got != "aaa" {
-		t.Fatalf("got %q err %v", got, err)
-	}
-	if _, err := checksumFor(sums, "ausente"); err == nil {
-		t.Fatal("esperaba error")
-	}
+type fakeNPM struct {
+	latest     string
+	viewErr    error
+	installErr error
+	calls      [][]string
 }
 
-func TestGunzip(t *testing.T) {
-	raw := []byte("hola")
-	var buf bytes.Buffer
-	w := gzip.NewWriter(&buf)
-	if _, err := w.Write(raw); err != nil {
-		t.Fatal(err)
+func (f *fakeNPM) exec(_ context.Context, name string, args ...string) ([]byte, error) {
+	f.calls = append(f.calls, append([]string{name}, args...))
+	if len(args) > 0 && args[0] == "view" {
+		return []byte(f.latest + "\n"), f.viewErr
 	}
-	if err := w.Close(); err != nil {
-		t.Fatal(err)
-	}
-	got, err := gunzip(buf.Bytes())
-	if err != nil || string(got) != "hola" {
-		t.Fatalf("got %q err %v", got, err)
-	}
+	return []byte("salida de npm"), f.installErr
 }
 
-func TestDownloadAndVerifyEndToEnd(t *testing.T) {
-	var buf bytes.Buffer
-	w := gzip.NewWriter(&buf)
-	if _, err := w.Write([]byte("binario-falso")); err != nil {
-		t.Fatal(err)
-	}
-	if err := w.Close(); err != nil {
-		t.Fatal(err)
-	}
-	sum := sha256.Sum256(buf.Bytes())
-	sums := hex.EncodeToString(sum[:]) + "  hush-linux-amd64.gz\n"
-	priv, pub, err := GenerateKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-	sig, err := SignBlob(priv, []byte(sums))
-	if err != nil {
-		t.Fatal(err)
-	}
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case strings.HasSuffix(r.URL.Path, ".gz"):
-			_, _ = w.Write(buf.Bytes())
-		case strings.HasSuffix(r.URL.Path, ".sig"):
-			_, _ = io.WriteString(w, sig)
-		case strings.HasSuffix(r.URL.Path, "checksums.txt"):
-			_, _ = io.WriteString(w, sums)
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	defer server.Close()
-
-	oldKeys := releasePubKeys
-	releasePubKeys = []string{pub}
-	defer func() { releasePubKeys = oldKeys }()
-
-	u := NewSelfUpdater()
-	u.BaseURL = server.URL
-	u.Repo = "cualquiera"
-	raw, err := u.downloadAndVerify(context.Background(), "v9.9.9", "hush-linux-amd64.gz")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(raw) != "binario-falso" {
-		t.Fatalf("got %q", raw)
-	}
-}
-
-func TestSignVerifyRoundtrip(t *testing.T) {
-	priv, pub, err := GenerateKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-	msg := []byte("checksums de mentira")
-	sig, err := SignBlob(priv, msg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := VerifyBlob(pub, msg, sig); err != nil {
-		t.Fatal(err)
-	}
-	if err := VerifyBlob(pub, []byte("otro"), sig); err == nil {
-		t.Fatal("verificó mensaje alterado")
-	}
-}
-
-func TestApplyReemplazaBinario(t *testing.T) {
-	dir := t.TempDir()
-	target := filepath.Join(dir, "hush")
-	if err := os.WriteFile(target, []byte("viejo"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := apply(target, []byte("nuevo")); err != nil {
-		t.Fatal(err)
-	}
-	got, err := os.ReadFile(target)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(got) != "nuevo" {
-		t.Fatalf("got %q", got)
-	}
-}
-
-func TestVerifySegundaClaveRota(t *testing.T) {
-	oldKeys := releasePubKeys
-	defer func() { releasePubKeys = oldKeys }()
-
-	privVieja, pubVieja, err := GenerateKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-	privNueva, pubNueva, err := GenerateKey()
-	if err != nil {
-		t.Fatal(err)
-	}
-	_ = privVieja
-	msg := []byte("checksums rotados")
-	sigNueva, err := SignBlob(privNueva, msg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	releasePubKeys = []string{pubVieja, pubNueva}
-	ok := false
-	for _, pub := range releasePubKeys {
-		if VerifyBlob(pub, msg, sigNueva) == nil {
-			ok = true
+func (f *fakeNPM) installed() bool {
+	for _, c := range f.calls {
+		if len(c) > 1 && c[1] == "install" {
+			return true
 		}
 	}
-	if !ok {
-		t.Fatal("firma de la clave nueva no verifica con la lista rotada")
-	}
-	privAjena, _, err := GenerateKey()
+	return false
+}
+
+func TestUpdateInstalaLaUltimaPorNPM(t *testing.T) {
+	f := &fakeNPM{latest: "0.7.0"}
+	res, err := (&SelfUpdater{Exec: f.exec}).Run(context.Background(), "v0.6.0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	sigAjena, err := SignBlob(privAjena, msg)
-	if err != nil {
-		t.Fatal(err)
+	if !res.Updated || res.NewVersion != "0.7.0" {
+		t.Fatalf("resultado inesperado: %+v", res)
 	}
-	for _, pub := range releasePubKeys {
-		if VerifyBlob(pub, msg, sigAjena) == nil {
-			t.Fatal("firma de clave desconocida aceptada")
+	last := f.calls[len(f.calls)-1]
+	want := "npm install -g --allow-scripts=hush-secrets hush-secrets@0.7.0"
+	if strings.Join(last, " ") != want {
+		t.Fatalf("comando %q, quiero %q", strings.Join(last, " "), want)
+	}
+}
+
+func TestUpdateNoHaceNadaSiYaEstaAlDia(t *testing.T) {
+	for _, current := range []string{"v0.7.0", "v0.8.0"} {
+		f := &fakeNPM{latest: "0.7.0"}
+		res, err := (&SelfUpdater{Exec: f.exec}).Run(context.Background(), current)
+		if err != nil {
+			t.Fatal(err)
 		}
+		if res.Updated || f.installed() {
+			t.Fatalf("%s: instaló sin necesidad", current)
+		}
+	}
+}
+
+func TestUpdateDevSiempreInstala(t *testing.T) {
+	f := &fakeNPM{latest: "0.7.0"}
+	res, err := (&SelfUpdater{Exec: f.exec}).Run(context.Background(), "dev")
+	if err != nil || !res.Updated {
+		t.Fatalf("res=%+v err=%v", res, err)
+	}
+}
+
+func TestUpdateSinNPMExplicaQueHacer(t *testing.T) {
+	f := &fakeNPM{viewErr: exec.ErrNotFound}
+	_, err := (&SelfUpdater{Exec: f.exec}).Run(context.Background(), "v0.6.0")
+	if err == nil || !strings.Contains(err.Error(), "necesita npm") {
+		t.Fatalf("error sin guía: %v", err)
+	}
+}
+
+func TestUpdateFalloDeInstalacionMuestraLaSalida(t *testing.T) {
+	f := &fakeNPM{latest: "0.7.0", installErr: errors.New("exit status 1")}
+	_, err := (&SelfUpdater{Exec: f.exec}).Run(context.Background(), "v0.6.0")
+	if err == nil || !strings.Contains(err.Error(), "salida de npm") {
+		t.Fatalf("no muestra la salida de npm: %v", err)
+	}
+}
+
+func TestUpdateRechazaVersionInvalidaDeNPM(t *testing.T) {
+	f := &fakeNPM{latest: "no-es-version"}
+	if _, err := (&SelfUpdater{Exec: f.exec}).Run(context.Background(), "v0.6.0"); err == nil {
+		t.Fatal("aceptó una versión inválida")
+	}
+	if f.installed() {
+		t.Fatal("instaló con una versión inválida")
 	}
 }

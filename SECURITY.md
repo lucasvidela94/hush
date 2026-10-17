@@ -44,6 +44,13 @@ Concretely, hush:
   not cover later commands that read it back outside hush (`claude mcp get`,
   `printenv`, `cat`). Verify with commands that do not print the config, read
   back through `hush run`, and prefer env-var references over stored values.
+  As a safety net, `hush run` warns on stderr (secret name and path, never the
+  value) when a fixed set of files changed during the run and now contain an
+  injected value literally: `~/.claude.json`, `~/.cursor/mcp.json`,
+  `~/.config/opencode/opencode.json`, and `.mcp.json`, `opencode.json` and
+  `.env*` in the current directory. It does not see transformed or encrypted
+  copies, files outside that list, or a rewrite that keeps the same size and
+  modification time.
 - **Confirmation differs by path.** `hush_run` over MCP always asks a human to
   confirm; `hush run` from a shell only goes through the harness's normal
   permission prompt.

@@ -28,6 +28,7 @@ La redacción solo cubre lo que pasa por `hush run`/`hush stdin`. Si un comando 
 - Después de cablear un secreto, verificá con un comando que no imprima la configuración (`claude mcp list`), o leelo a través de `hush run`.
 - No ejecutes fuera de hush: `claude mcp get`, `config list`, `env`, `printenv`, `cat` de configs, `git remote -v` con token en la URL.
 - Preferí referencias por variable de entorno (`${NOMBRE}`) en vez de valores persistidos, y lanzá la herramienta con `hush run --only NOMBRE -- ...`.
+- Si `hush run` avisa "quedó guardado en texto plano en RUTA", el valor está en ese archivo: no lo leas, avisale al humano para que lo rote o lo cambie por una referencia.
 - Si un valor llegó al transcript igual, avisale al humano que lo rote.
 
 ## Vía MCP (dentro del harness)

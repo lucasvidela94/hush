@@ -24,7 +24,12 @@ func Run(ctx context.Context, extra map[string]string, argv []string, stdin io.R
 		env = append(env, k+"="+v)
 		secrets = append(secrets, v)
 	}
-	return execute(ctx, env, secrets, argv, stdin, stdout, stderr)
+	home, _ := os.UserHomeDir()
+	cwd, _ := os.Getwd()
+	before := snapshot(watchedPaths(home, cwd))
+	code := execute(ctx, env, secrets, argv, stdin, stdout, stderr)
+	warnPersisted(stderr, findPersisted(before, snapshot(watchedPaths(home, cwd)), extra))
+	return code
 }
 
 func Pipe(ctx context.Context, value string, argv []string, stdout, stderr io.Writer) int {

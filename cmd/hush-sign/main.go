@@ -41,8 +41,23 @@ func main() {
 			os.Exit(1)
 		}
 		fmt.Println(sig)
+	case "compat":
+		if len(os.Args) != 3 {
+			fmt.Fprintln(os.Stderr, "uso: hush-sign compat <pubkey.go del release anterior>")
+			os.Exit(2)
+		}
+		src, err := os.ReadFile(os.Args[2])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		if err := update.CheckSigningCompat(os.Getenv("HUSH_SIGN_PRIV"), update.KeysFromSource(src)); err != nil {
+			fmt.Fprintf(os.Stderr, "hush-sign: %s\n", err)
+			os.Exit(1)
+		}
+		fmt.Println("clave de firma compatible con el release anterior")
 	default:
-		fmt.Fprintln(os.Stderr, "uso: hush-sign gen | hush-sign sign <archivo>")
+		fmt.Fprintln(os.Stderr, "uso: hush-sign gen | hush-sign sign <archivo> | hush-sign compat <pubkey.go>")
 		os.Exit(2)
 	}
 }

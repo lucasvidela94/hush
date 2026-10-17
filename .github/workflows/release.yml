@@ -27,10 +27,51 @@ jobs:
           go vet ./...
           go test ./...
 
+  signing-compat:
+    name: Signing key compatible with previous release
+    runs-on: ubuntu-latest
+    needs: [test]
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: "1.26"
+
+      - name: Previous release must trust the signing key
+        env:
+          HUSH_SIGN_PRIV: ${{ secrets.HUSH_SIGN_PRIV }}
+          ALLOW_KEY_BREAK: ${{ vars.HUSH_ALLOW_KEY_BREAK }}
+        run: |
+          prev=$(git tag --list 'v*' --sort=-v:refname | grep -vx "$GITHUB_REF_NAME" | head -1)
+          if [ -z "$prev" ]; then
+            echo "sin release anterior: nada que comprobar"
+            exit 0
+          fi
+          if ! git show "$prev:internal/update/pubkey.go" > "$RUNNER_TEMP/prev_pubkey.go"; then
+            echo "::warning::$prev no tiene pubkey.go: no se comprueba"
+            exit 0
+          fi
+          if go run ./cmd/hush-sign compat "$RUNNER_TEMP/prev_pubkey.go"; then
+            exit 0
+          fi
+          if [ "$ALLOW_KEY_BREAK" = "true" ]; then
+            echo "::warning::rotación sin puente permitida por HUSH_ALLOW_KEY_BREAK: los binarios de $prev deberán reinstalar por npm"
+            exit 0
+          fi
+          echo "::error::Los binarios de $prev no podrían verificar este release y quedarían sin 'hush update'."
+          echo "Primero publicá un release firmado con una clave que $prev conozca y que ya incluya la nueva en releasePubKeys."
+          echo "Si la ruptura es intencional, creá la variable de repo HUSH_ALLOW_KEY_BREAK=true y documentala en el CHANGELOG."
+          exit 1
+
   build:
     name: Build ${{ matrix.goos }}-${{ matrix.goarch }}
     runs-on: ubuntu-latest
-    needs: [test]
+    needs: [test, signing-compat]
     permissions:
       contents: read
       attestations: write # build provenance

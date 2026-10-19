@@ -91,6 +91,15 @@ a backup:
   Agents with their own `permissions` load after the global rules and win:
   an agent with `read ** allow` or `shell grep * allow` overrides them.
   Repeat the hush rules at the end of that agent's list.
+- Codex: `hush setup` writes `~/.codex/rules/hush.rules` (its own file) with
+  `prompt` on `hush run`, `stdin` and `export`. Codex loads every `*.rules`
+  and the strictest decision wins, so an `allow` approved earlier in
+  `default.rules` does not override it. Codex can also deny `~/.hush` in its
+  OS sandbox, which blocks `cat`, `grep` and any shell command, unlike tool
+  rules. `hush setup` does not edit `config.toml`; `hush doctor` prints the
+  permission profile to add. With it, `hush` run through the shell cannot
+  read the vault either: use the hush MCP server (Codex launches MCP servers
+  outside the sandbox) or approve running outside the sandbox.
 - Other harnesses: equivalent deny/ask rules exist for shell and file tools;
   add them by hand.
 

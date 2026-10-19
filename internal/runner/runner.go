@@ -67,30 +67,23 @@ func execute(ctx context.Context, env []string, secrets []string, argv []string,
 		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 	}
 	cmd.WaitDelay = killGrace
-	if !stream {
+	var err error
+	if stream {
+		outS, errS := redact.NewStream(stdout, secrets), redact.NewStream(stderr, secrets)
+		cmd.Stdout = outS
+		cmd.Stderr = errS
+		err = cmd.Run()
+		_ = outS.Flush()
+		_ = errS.Flush()
+	} else {
 		var outB, errB cappedBuffer
 		cmd.Stdout = &outB
 		cmd.Stderr = &errB
-		err := cmd.Run()
+		err = cmd.Run()
 		out := append(outB.truncatedNote(), redact.Apply(outB.Bytes(), secrets)...)
 		_, _ = stdout.Write(out)
 		_, _ = stderr.Write(redact.Apply(errB.Bytes(), secrets))
-		if err == nil {
-			return 0
-		}
-		var ee *exec.ExitError
-		if errors.As(err, &ee) {
-			return ee.ExitCode()
-		}
-		return 1
 	}
-	outS := &lineWriter{w: stdout, secrets: secrets}
-	errS := &lineWriter{w: stderr, secrets: secrets}
-	cmd.Stdout = outS
-	cmd.Stderr = errS
-	err := cmd.Run()
-	_ = outS.Flush()
-	_ = errS.Flush()
 	if err == nil {
 		return 0
 	}
@@ -99,53 +92,6 @@ func execute(ctx context.Context, env []string, secrets []string, argv []string,
 		return ee.ExitCode()
 	}
 	return 1
-}
-
-// lineWriter reenvía por línea con redacción incremental: retiene solo la
-// cola incompleta, así un secreto nunca sale cortado entre escrituras.
-type lineWriter struct {
-	w         io.Writer
-	secrets   []string
-	tail      []byte
-	truncated bool
-}
-
-func (s *lineWriter) Write(p []byte) (int, error) {
-	s.tail = append(s.tail, p...)
-	for {
-		i := bytes.IndexByte(s.tail, '\n')
-		if i < 0 {
-			break
-		}
-		line := append([]byte(nil), s.tail[:i+1]...)
-		s.tail = append([]byte(nil), s.tail[i+1:]...)
-		if _, err := s.w.Write(redact.Apply(line, s.secrets)); err != nil {
-			return len(p), err
-		}
-	}
-	if len(s.tail) > captureLimit {
-		s.truncated = true
-		rest := append([]byte(nil), s.tail...)
-		s.tail = nil
-		if _, err := s.w.Write(redact.Apply(rest, s.secrets)); err != nil {
-			return len(p), err
-		}
-	}
-	return len(p), nil
-}
-
-// Flush vuelca la cola final (línea sin salto o resto recortado).
-func (s *lineWriter) Flush() error {
-	if len(s.tail) == 0 && !s.truncated {
-		return nil
-	}
-	out := redact.Apply(s.tail, s.secrets)
-	if s.truncated {
-		out = append(out, []byte("\n[hush: salida recortada por límite]\n")...)
-	}
-	s.tail = nil
-	_, err := s.w.Write(out)
-	return err
 }
 
 type cappedBuffer struct {

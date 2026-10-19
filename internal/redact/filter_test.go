@@ -110,6 +110,22 @@ func TestApplySubstringPermutacionYMascara(t *testing.T) {
 	}
 }
 
+func TestApplyFragmentoDeTokenLargo(t *testing.T) {
+	secret := strings.Repeat("Q7mPv2LwT8xZk9", 14)
+	cases := map[string]string{
+		"40 caracteres de a uno por línea": strings.Join(strings.Split(secret[:40], ""), "\n") + "\n",
+		"20 caracteres literales":          "token " + secret[30:50] + "\n",
+	}
+	for name, data := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := normalize(string(Apply([]byte(data), []string{secret})))
+			if want := normalize(secret[30:46]); strings.Contains(got, want) || strings.Contains(got, normalize(secret[:16])) {
+				t.Fatalf("quedó visible un tramo de 16 en %q", got)
+			}
+		})
+	}
+}
+
 func TestApplyNoFalsosPositivos(t *testing.T) {
 	secret := "Zk9xQ7mPv2LwT8"
 	for _, data := range []string{
@@ -136,7 +152,7 @@ func TestApplySalidaGrandeEsRapida(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			start := time.Now()
 			got := Apply([]byte(data), secrets)
-			if d := time.Since(start); d > 10*time.Second {
+			if d := time.Since(start); !raceEnabled && d > 10*time.Second {
 				t.Fatalf("tardó %s", d)
 			}
 			if bytes.Contains(got, []byte("sk_live_SUPERSECRET")) {

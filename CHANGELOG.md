@@ -1,5 +1,18 @@
 # Changelog
 
+## Sin publicar
+
+- `hush run --stream --only A,B -- cmd` reenvía stdout/stderr por línea a
+  medida que llegan, para procesos longevos con stdio en streaming (servidores
+  MCP). Sin `--stream`, `hush run` sigue esperando al exit y por eso no servía
+  como wrapper de un servidor MCP. Cada línea se tapa mirando también las
+  anteriores: un secreto repartido entre líneas se corta antes de que salga
+  más que un fragmento corto.
+- La redacción detecta tramos de 12 caracteres de un secreto aunque estén
+  separados por espacios o saltos de línea. Antes, de un token largo podía
+  quedar visible hasta el 40% (por ejemplo `fold -w1 | head -40`) porque solo
+  se buscaba el valor completo o una ventana proporcional a su largo.
+
 ## v0.6.1
 
 - `hush update` ahora delega en npm: consulta la última versión y corre

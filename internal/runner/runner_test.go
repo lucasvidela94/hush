@@ -124,20 +124,35 @@ func TestRunStreamEntregaAntesDeEOF(t *testing.T) {
 }
 
 func TestRunStreamRedacta(t *testing.T) {
-	var out, errB bytes.Buffer
-	code := RunStream(
-		context.Background(),
-		map[string]string{"HUSH_T": "valor-ultrasecreto"},
-		[]string{"sh", "-c", "echo la key es $HUSH_T"},
-		nil, &out, &errB,
-	)
-	if code != 0 {
-		t.Fatalf("exit %d", code)
+	cases := []struct {
+		name   string
+		script string
+	}{
+		{"literal", `echo la key es $HUSH_T`},
+		{"partido entre escrituras", `printf 'la key es %.9s' "$HUSH_T"; printf '%s\n' "${HUSH_T#?????????}"`},
+		{"un carácter por línea", `printf '%s' "$HUSH_T" | fold -w1`},
 	}
-	if strings.Contains(out.String(), "valor-ultrasecreto") {
-		t.Fatalf("salida sin redactar: %q", out.String())
-	}
-	if !strings.Contains(out.String(), "[REDACTED]") {
-		t.Fatalf("falta marca: %q", out.String())
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var out, errB bytes.Buffer
+			code := RunStream(
+				context.Background(),
+				map[string]string{"HUSH_T": "valor-ultrasecreto-123"},
+				[]string{"sh", "-c", tc.script},
+				nil, &out, &errB,
+			)
+			if code != 0 {
+				t.Fatalf("exit %d: %s", code, errB.String())
+			}
+			flat := strings.Join(strings.Fields(out.String()), "")
+			for _, half := range []string{"valor-ultr", "asecreto-123"} {
+				if strings.Contains(flat, half) {
+					t.Fatalf("quedó visible %q en %q", half, out.String())
+				}
+			}
+			if !strings.Contains(out.String(), "REDACTED") {
+				t.Fatalf("falta marca: %q", out.String())
+			}
+		})
 	}
 }

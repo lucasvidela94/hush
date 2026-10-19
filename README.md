@@ -48,6 +48,15 @@ hush status
 `check` and `list` print names only. `run` and `stdin` inject into the child
 process and redact output to `[REDACTED]`.
 
+`hush run` waits for the command to exit before printing, so redaction sees
+the whole output. To wrap a long-lived stdio process such as an MCP server,
+add `--stream`: output is forwarded line by line as it arrives (trade-offs in
+`SECURITY.md`).
+
+```json
+"jira": {"type": "local", "command": ["hush", "run", "--stream", "--only", "JIRA_API_TOKEN", "--", "jira-mcp"]}
+```
+
 ## Where secrets live, and getting them back
 
 Values are stored in `~/.hush/vault` (file `0600`, dir `0700`), one
@@ -69,8 +78,9 @@ recovery; wipe with `rm -rf ~/.hush`. See `SECURITY.md` and `PRIVACY.md`.
 
 - Linux and macOS only (amd64/arm64). No Windows (TTY model).
 - `hush_run` over MCP asks for human confirmation on every call and times
-  out slow commands at 5 minutes. Long-lived processes belong in your
-  terminal, not in the agent.
+  out slow commands at 5 minutes, so don't start long-lived processes through
+  it: run them in your terminal, or wrap an MCP server with
+  `hush run --stream` in your harness config.
 - Elicitation (native secret prompts) needs an interactive session; headless
   runs get the safe fallback (`hush set` in your terminal).
 

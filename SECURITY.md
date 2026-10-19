@@ -32,11 +32,17 @@ Concretely, hush:
   mangling normal output. PINs and short codes can leak through `run` output.
 - **Split transforms.** Redaction covers literal values plus base64, hex
   (plain/upper/spaced), URL-encoding, and reversal. It also catches
-  substrings of 6+ characters (at least 40% of the value), reordered characters
-  (`fold | sort`), and masked copies (`sed 's/[0-9]/#/g'`); expect false
-  positives on short secrets. Anything that splits the
-  value with whitespace, wraps base64 lines, or re-encodes it (gzip,
-  encryption) passes through. Enumeration is finite; exfiltration is not.
+  substrings of 6+ characters (at least 40% of the value), stretches of 12
+  characters of the value even when split by spaces or newlines (`fold -w1`),
+  reordered characters (`fold | sort`), and masked copies
+  (`sed 's/[0-9]/#/g'`); expect false positives on short secrets. Shorter
+  pieces, interleaving with other text, or re-encoding (gzip, encryption)
+  pass through. Enumeration is finite; exfiltration is not.
+- **Streaming output.** `hush run --stream` forwards each line as it arrives,
+  so what was already sent cannot be taken back: a value leaking piece by
+  piece across lines can show up to 11 characters before the rest is
+  redacted. Batch mode (the default) sees the whole output first and shows
+  none. Use `--stream` only for long-lived stdio processes (MCP servers).
 - **Exfiltration by the child process.** A command run via `hush run` receives
   real values and can send them anywhere. Only run commands you trust.
 - **Values persisted by the child.** If a command run via `hush run` writes

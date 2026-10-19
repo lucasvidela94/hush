@@ -1,6 +1,6 @@
 # Changelog
 
-## Sin publicar
+## v0.7.0
 
 - `hush run --stream --only A,B -- cmd` reenvía stdout/stderr por línea a
   medida que llegan, para procesos longevos con stdio en streaming (servidores

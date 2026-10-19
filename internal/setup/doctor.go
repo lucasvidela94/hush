@@ -74,6 +74,9 @@ func guardChecks(home string) []Check {
 		}
 		checks = append(checks, Check{Name: "reglas " + h.Name, Status: Warn, Detail: "el agente puede leer ~/.hush, corré hush setup"})
 	}
+	if c, ok := codexSandboxCheck(home); ok {
+		checks = append(checks, c)
+	}
 	return checks
 }
 

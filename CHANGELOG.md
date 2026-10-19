@@ -1,7 +1,12 @@
 # Changelog
 
-## Sin publicar
+## v0.8.0
 
+- `hush setup` escribe `~/.codex/rules/hush.rules` para que Codex pida
+  confirmación en `hush run`, `stdin` y `export`, aunque antes se haya
+  aprobado un `allow`. `hush doctor` recomienda además el perfil de permisos
+  que niega `~/.hush` en el sandbox de Codex (bloquea hasta `cat` por shell;
+  hush se usa entonces por su servidor MCP).
 - `hush setup` registra el servidor MCP en opencode v2 dentro de
   `mcp.servers.hush` (antes escribía `mcp.hush`, el formato v1, que v2 no
   lee) y mueve una entrada vieja si la encuentra. La versión sale de la

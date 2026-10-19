@@ -34,7 +34,8 @@ returns a value.
 (asks for the value via elicitation and stores it), `hush_run` (injects +
 redacts). `hush setup` installs the skill, registers the server, and offers
 to add harness permission rules so the agent cannot read `~/.hush` with its
-file tools (Claude Code, opencode v2).
+file tools (Claude Code, opencode v2) or runs `hush` without confirmation
+(Codex).
 
 ## CLI
 

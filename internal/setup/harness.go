@@ -69,6 +69,8 @@ func Harnesses() []Harness {
 			Snippet: func(command string) string {
 				return "[mcp_servers.hush]\ncommand = \"" + command + "\"\nargs = [\"serve\"]\n# en ~/.codex/config.toml"
 			},
+			Protect:   protectCodex,
+			Protected: protectedCodex,
 		},
 	}
 }

@@ -78,7 +78,7 @@ const wiring = `hush serve es el servidor MCP (stdio). Registralo en tu harness:
     args = ["serve"]
 
 Para que el agente no pueda leer ~/.hush, corré hush setup en tu terminal:
-agrega reglas de permisos en Claude Code y opencode (ver SECURITY.md).
+agrega reglas de permisos en Claude Code, opencode y Codex (ver SECURITY.md).
 `
 
 func Wiring() string {

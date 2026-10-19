@@ -71,12 +71,22 @@ Concretely, hush:
 `hush_run` confirmation governs calls **through MCP**. It does not govern an
 agent with shell access: `hush run --all -- …`, `cat ~/.hush/vault`, or
 `hush export` under a pty run without asking. The real control there is the
-harness's own permissions. Recommended (verify syntax against your harness
-version, it changes):
+harness's own permissions. `hush setup` offers to write them (and
+`hush doctor` warns when they are missing), merging into existing rules with
+a backup:
 
-- Claude Code (`settings.json`): deny `Read(~/.hush/**)`, ask on
-  `Bash(hush run:*)` and `Bash(hush export:*)`.
-- Equivalent deny/ask rules exist in most harnesses for shell and file tools.
+- Claude Code (`~/.claude/settings.json`): deny `Read(~/.hush/**)` and
+  `Edit(~/.hush/**)` (they also cover `cat`, `head`, `sed` and redirections),
+  ask on `Bash(hush run *)`, `Bash(hush stdin *)` and `Bash(hush export *)`.
+- opencode v2 (`permissions`, last match wins, so they go at the end): deny
+  `external_directory`, `read` and `edit` on `~/.hush/*`, deny `shell` on
+  `*.hush/*`, ask on `shell` `hush run *`, `hush stdin *`, `hush export *`.
+  A v1 config (`permission`) is left untouched: add the equivalents by hand.
+  Agents with their own `permissions` load after the global rules and win:
+  an agent with `read ** allow` or `shell grep * allow` overrides them.
+  Repeat the hush rules at the end of that agent's list.
+- Other harnesses: equivalent deny/ask rules exist for shell and file tools;
+  add them by hand.
 
 This is whack-a-mole against `cat` via Bash — useful friction, not a
 boundary. The structural fix is getting the vault out of the agent's reach

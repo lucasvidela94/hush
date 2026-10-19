@@ -134,7 +134,7 @@ func jsonCheck(home string, h Harness) Check {
 	var path string
 	switch h.Name {
 	case "opencode":
-		path = opencodePath(home)
+		return opencodeCheck(home)
 	case "cursor":
 		path = cursorPath(home)
 	default:

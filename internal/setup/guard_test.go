@@ -162,6 +162,7 @@ func TestProtectNoTocaConfigDudosa(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			fakeOpencode(t, "")
 			home := t.TempDir()
 			path := tc.path(home)
 			writeConfig(t, path, tc.original)

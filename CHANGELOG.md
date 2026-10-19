@@ -2,6 +2,12 @@
 
 ## Sin publicar
 
+- `hush setup` registra el servidor MCP en opencode v2 dentro de
+  `mcp.servers.hush` (antes escribía `mcp.hush`, el formato v1, que v2 no
+  lee) y mueve una entrada vieja si la encuentra. La versión sale de la
+  config (`permission` → v1; `permissions` o `mcp.servers` → v2) o, sin
+  marcas, de `opencode --version`. `hush doctor` chequea la ruta correcta y
+  avisa si la entrada quedó en formato v1.
 - `hush setup` ofrece agregar reglas de permisos para que el agente no lea ni
   edite `~/.hush` con sus herramientas y pida confirmación en `hush run`,
   `stdin` y `export`: Claude Code (`~/.claude/settings.json`) y opencode v2

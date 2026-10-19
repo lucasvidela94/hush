@@ -39,11 +39,9 @@ func Harnesses() []Harness {
 			Detect: func(home, pathEnv string) bool {
 				return hasBinary(pathEnv, "opencode") || exists(opencodePath(home))
 			},
-			Apply: applyJSON(opencodePath, "mcp", func(command string) any {
-				return map[string]any{"type": "local", "command": []string{command, "serve"}}
-			}),
+			Apply: applyOpencode,
 			Snippet: func(command string) string {
-				return "{\"mcp\": {\"hush\": {\"type\": \"local\", \"command\": [\"" + command + "\", \"serve\"]}}}  (en opencode.json)"
+				return "{\"mcp\": {\"servers\": {\"hush\": {\"type\": \"local\", \"command\": [\"" + command + "\", \"serve\"]}}}}  (en opencode.json; v1: sin \"servers\")"
 			},
 			Protect:   protectWith(opencodePath, mergeOpencode),
 			Protected: protectedWith(opencodePath, mergeOpencode),
@@ -91,10 +89,6 @@ func hasBinary(pathEnv, name string) bool {
 func exists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
-}
-
-func opencodePath(home string) string {
-	return filepath.Join(home, ".config", "opencode", "opencode.json")
 }
 
 func cursorPath(home string) string {

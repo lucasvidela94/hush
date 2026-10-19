@@ -64,7 +64,9 @@ const wiring = `hush serve es el servidor MCP (stdio). Registralo en tu harness:
 
   claude mcp add hush -- hush serve
 
-  opencode (opencode.json):
+  opencode v2 (opencode.json):
+    {"mcp": {"servers": {"hush": {"type": "local", "command": ["hush", "serve"]}}}}
+  opencode v1:
     {"mcp": {"hush": {"type": "local", "command": ["hush", "serve"]}}}
 
   cursor (~/.cursor/mcp.json):

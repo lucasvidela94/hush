@@ -30,6 +30,7 @@ func TestDetectaPorBinario(t *testing.T) {
 }
 
 func TestApplyJSONFusionaYRespalda(t *testing.T) {
+	fakeOpencode(t, "")
 	home := t.TempDir()
 	dir := filepath.Join(home, ".config", "opencode")
 	if err := os.MkdirAll(dir, 0o755); err != nil {

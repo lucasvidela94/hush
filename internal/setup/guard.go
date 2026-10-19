@@ -69,16 +69,15 @@ func opencodeRules() []map[string]any {
 }
 
 func mergeOpencode(config map[string]any) (bool, error) {
-	if _, v1 := config["permission"]; v1 {
+	switch opencodeVersion(config) {
+	case 1:
 		return false, errors.New("config de opencode v1 (permission), agregá las reglas a mano: ver SECURITY.md")
+	case 0:
+		return false, errors.New("no sé si esta config es de opencode v1 o v2, agregá las reglas a mano: ver SECURITY.md")
 	}
 	rules, isList := config["permissions"].([]any)
 	if _, exists := config["permissions"]; exists && !isList {
 		return false, errors.New("permissions no es una lista, no lo toco")
-	}
-	mcp, _ := config["mcp"].(map[string]any)
-	if _, servers := mcp["servers"]; !isList && !servers {
-		return false, errors.New("no sé si esta config es de opencode v1 o v2, agregá las reglas a mano: ver SECURITY.md")
 	}
 	changed := false
 	for _, want := range opencodeRules() {
@@ -112,8 +111,8 @@ func protectWith(pathOf func(string) string, merge func(map[string]any) (bool, e
 
 func protectedWith(pathOf func(string) string, merge func(map[string]any) (bool, error)) func(string) bool {
 	return func(home string) bool {
-		config, _, err := loadJSON(pathOf(home))
-		if err != nil {
+		config, raw, err := loadJSON(pathOf(home))
+		if err != nil || raw == nil {
 			return false
 		}
 		changed, err := merge(config)

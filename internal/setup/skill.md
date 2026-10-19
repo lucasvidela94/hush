@@ -54,6 +54,10 @@ hush check WHATSAPP_VERIFY_TOKEN META_APP_SECRET
 hush run --only CLOUDFLARE_API_TOKEN -- npx wrangler secret list
 hush stdin WHATSAPP_VERIFY_TOKEN -- npx wrangler secret put WHATSAPP_VERIFY_TOKEN
 hush run --only META_APP_SECRET -- npx wrangler deploy
+# Procesos longevos con stdio en streaming (servidores MCP): el modo normal
+# retiene la salida hasta el exit; --stream la reenvía por línea con redacción.
+# Usalo solo para eso: el modo normal tapa mejor porque ve toda la salida junta.
+hush run --stream --only JIRA_API_TOKEN -- jira-mcp
 ```
 
 Humano en su terminal (no vos):

@@ -17,30 +17,38 @@ const nuke = "[REDACTED: posible secreto transformado]"
 const MinLength = 4
 
 func Apply(data []byte, secrets []string) []byte {
+	long := longSecrets(secrets)
+	if len(long) == 0 {
+		return data
+	}
+	return apply(data, long, literalPatterns(long))
+}
+
+func longSecrets(secrets []string) []string {
 	long := []string{}
 	for _, s := range secrets {
 		if len(s) >= MinLength {
 			long = append(long, s)
 		}
 	}
-	if len(long) == 0 {
-		return data
-	}
-	out := replaceLiterals(data, long)
-	if !transformed(data, out, long) {
+	return long
+}
+
+func apply(data []byte, secrets []string, patterns [][]byte) []byte {
+	out := applyPatterns(data, patterns)
+	if !transformed(data, out, secrets) {
 		return out
 	}
-	return redactByLine(data, long)
+	return redactByLine(data, secrets, patterns)
 }
 
 func transformed(data, out []byte, secrets []string) bool {
-	return scanEncoded(string(data), secrets) || scanSpaceless(out, secrets) || scanStrided(out, secrets) || scanStridedRaw(string(data), secrets) || scanDecimal(string(data), secrets) || scanPermuted(out, secrets) || scanMasked(out, secrets)
+	return scanEncoded(string(data), secrets) || scanSpaceless(out, secrets) || scanFragments(out, secrets) || scanStrided(out, secrets) || scanStridedRaw(string(data), secrets) || scanDecimal(string(data), secrets) || scanPermuted(out, secrets) || scanMasked(out, secrets)
 }
 
-func redactByLine(data []byte, secrets []string) []byte {
+func redactByLine(data []byte, secrets []string, patterns [][]byte) []byte {
 	var kept bytes.Buffer
 	flagged := false
-	patterns := literalPatterns(secrets)
 	for _, line := range bytes.SplitAfter(data, []byte("\n")) {
 		out := applyPatterns(line, patterns)
 		if transformed(line, out, secrets) {
@@ -63,6 +71,7 @@ const (
 	windowMaxLen  = 256
 	scanMinLen    = 8
 	maskedMatches = 0.6
+	fragmentLen   = 12
 )
 
 func windowLen(n int) int {
@@ -217,10 +226,6 @@ func scanDecimal(s string, secrets []string) bool {
 		}
 	}
 	return check(dec) || check(oct)
-}
-
-func replaceLiterals(data []byte, secrets []string) []byte {
-	return applyPatterns(data, literalPatterns(secrets))
 }
 
 func applyPatterns(data []byte, patterns [][]byte) []byte {
@@ -429,6 +434,31 @@ func scanSpaceless(redacted []byte, secrets []string) bool {
 		}
 		if strings.Contains(flat, norm) || strings.Contains(flat, reverse(norm)) {
 			return true
+		}
+	}
+	return false
+}
+
+// scanFragments busca un tramo corto del secreto con los separadores quitados:
+// detecta uno que sale de a pedazos o recortado antes de que esté completo.
+// El tramo es fijo para que de un token largo no se escape casi la mitad.
+func scanFragments(redacted []byte, secrets []string) bool {
+	flat := normalize(strings.NewReplacer(nuke, " ", "[REDACTED]", " ").Replace(string(redacted)))
+	for _, s := range secrets {
+		norm := normalize(s)
+		n := min(windowLen(len(norm)), fragmentLen)
+		if len(norm) <= n || len(flat) < n {
+			continue
+		}
+		frags := make(map[string]bool, 2*len(norm))
+		for i := 0; i+n <= len(norm); i++ {
+			frags[norm[i:i+n]] = true
+			frags[reverse(norm[i:i+n])] = true
+		}
+		for i := 0; i+n <= len(flat); i++ {
+			if frags[flat[i:i+n]] {
+				return true
+			}
 		}
 	}
 	return false

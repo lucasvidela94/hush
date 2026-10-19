@@ -224,25 +224,34 @@ func list(store vault.Store, stdout, stderr io.Writer) int {
 func run(argv []string, store vault.Store, stdin *os.File, stdout, stderr io.Writer) int {
 	only := map[string]bool{}
 	all := false
+	stream := false
 	rest := argv
-	if len(argv) >= 1 && argv[0] == "--only" {
-		if len(argv) < 3 {
-			fmt.Fprintln(stderr, "uso: hush run [--only A,B | --all] -- comando...")
+	if len(rest) >= 1 && rest[0] == "--stream" {
+		stream = true
+		rest = rest[1:]
+	}
+	if len(rest) >= 1 && rest[0] == "--only" {
+		if len(rest) < 3 {
+			fmt.Fprintln(stderr, "uso: hush run [--stream] [--only A,B | --all] -- comando...")
 			return Usage
 		}
-		for _, k := range strings.Split(argv[1], ",") {
+		for _, k := range strings.Split(rest[1], ",") {
 			only[strings.TrimSpace(k)] = true
 		}
-		rest = argv[2:]
-	} else if len(argv) >= 1 && argv[0] == "--all" {
+		rest = rest[2:]
+	} else if len(rest) >= 1 && rest[0] == "--all" {
 		all = true
-		rest = argv[1:]
+		rest = rest[1:]
+	}
+	if len(rest) >= 1 && rest[0] == "--stream" {
+		stream = true
+		rest = rest[1:]
 	}
 	if len(rest) > 0 && rest[0] == "--" {
 		rest = rest[1:]
 	}
 	if len(rest) == 0 {
-		fmt.Fprintln(stderr, "uso: hush run [--only A,B | --all] -- comando...")
+		fmt.Fprintln(stderr, "uso: hush run [--stream] [--only A,B | --all] -- comando...")
 		return Usage
 	}
 	if !all && len(only) == 0 {
@@ -273,6 +282,9 @@ func run(argv []string, store vault.Store, stdin *os.File, stdout, stderr io.Wri
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	if stream {
+		return runner.RunStream(ctx, extra, rest, stdin, stdout, stderr)
+	}
 	return runner.Run(ctx, extra, rest, stdin, stdout, stderr)
 }
 
@@ -303,7 +315,7 @@ func printUsage(w io.Writer) {
   hush rm NOMBRE...                borra secretos (también: delete, unset, remove)
   hush check NOMBRE...             ¿están guardados? (solo nombres)
   hush list                        qué nombres hay guardados
-  hush run [--only A,B | --all] -- cmd...  corre un comando con los valores inyectados
+  hush run [--stream] [--only A,B | --all] -- cmd...  corre un comando con los valores inyectados
   hush stdin NOMBRE -- cmd...      le escribe un valor al stdin del comando
   hush export [NOMBRES...]         muestra valores SOLO en terminal real
   hush serve                       servidor MCP para tu harness de IA
@@ -324,7 +336,7 @@ var helpText = map[string]string{
 	"rm":     "uso: hush rm [--yes] NOMBRE...\nBorra secretos del vault (alias: delete, unset, remove). Pide confirmación en terminal salvo con --yes. Si falta algún nombre no borra nada.\nPara rotar un valor, volvé a correr hush set NOMBRE: lo reemplaza.",
 	"check":  "uso: hush check [--json] NOMBRE...\nDice qué nombres están guardados y cuáles faltan. Nunca muestra valores.",
 	"list":   "uso: hush list\nLista los nombres guardados. Nunca muestra valores.",
-	"run":    "uso: hush run [--only A,B | --all] -- comando...\nCorre el comando solo con los secretos indicados (todos solo con --all explícito) y tapa los valores en la salida.\nej: hush run --only API_KEY -- ./deploy.sh",
+	"run":    "uso: hush run [--stream] [--only A,B | --all] -- comando...\nCorre el comando solo con los secretos indicados (todos solo con --all explícito) y tapa los valores en la salida.\nCon --stream reenvía la salida por línea a medida que llega (para procesos longevos como servidores MCP); sin --stream espera al exit. Lo ya reenviado no se puede retirar: si un secreto sale de a pedazos entre líneas, puede quedar visible un fragmento corto antes de que se tape.\nej: hush run --only API_KEY -- ./deploy.sh",
 	"stdin":  "uso: hush stdin NOMBRE -- comando...\nLe escribe el valor al stdin del comando. Para programas que piden el secreto por consola.\nej: hush stdin MI_TOKEN -- npx wrangler secret put MI_TOKEN",
 	"export": "uso: hush export [NOMBRES...]\nMuestra valores en TU terminal. Se niega si la salida no es una terminal (un pty no prueba que haya un humano: ver SECURITY.md).",
 	"serve":  "uso: hush serve\nServidor MCP (stdio) para tu harness de IA. Registralo con: hush setup",

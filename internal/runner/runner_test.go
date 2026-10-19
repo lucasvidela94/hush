@@ -3,6 +3,7 @@ package runner
 import (
 	"bytes"
 	"context"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -57,5 +58,101 @@ func TestMataGrupoCompleto(t *testing.T) {
 	}
 	if code == 0 {
 		t.Fatal("exit 0 con kill")
+	}
+}
+
+func TestRunStreamEntregaAntesDeEOF(t *testing.T) {
+	inR, inW, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	outR, outW, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var errB bytes.Buffer
+	done := make(chan int, 1)
+	go func() {
+		done <- RunStream(
+			context.Background(),
+			nil,
+			[]string{"sh", "-c", "echo hola; cat > /dev/null"},
+			inR, outW, &errB,
+		)
+	}()
+
+	lineCh := make(chan string, 1)
+	go func() {
+		var first bytes.Buffer
+		tmp := make([]byte, 1)
+		for {
+			n, rerr := outR.Read(tmp)
+			if n > 0 {
+				first.Write(tmp[:n])
+				if tmp[0] == '\n' {
+					break
+				}
+			}
+			if rerr != nil {
+				break
+			}
+		}
+		lineCh <- first.String()
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	select {
+	case line := <-lineCh:
+		if !strings.Contains(line, "hola") {
+			t.Fatalf("primera línea inesperada: %q", line)
+		}
+	case <-ctx.Done():
+		t.Fatal("stream no entregó nada antes de EOF: retiene stdout")
+	}
+
+	_ = inW.Close()
+	_ = outW.Close()
+	select {
+	case code := <-done:
+		if code != 0 {
+			t.Fatalf("exit %d, quiero 0", code)
+		}
+	case <-ctx.Done():
+		t.Fatal("el hijo no terminó tras EOF")
+	}
+}
+
+func TestRunStreamRedacta(t *testing.T) {
+	cases := []struct {
+		name   string
+		script string
+	}{
+		{"literal", `echo la key es $HUSH_T`},
+		{"partido entre escrituras", `printf 'la key es %.9s' "$HUSH_T"; printf '%s\n' "${HUSH_T#?????????}"`},
+		{"un carácter por línea", `printf '%s' "$HUSH_T" | fold -w1`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var out, errB bytes.Buffer
+			code := RunStream(
+				context.Background(),
+				map[string]string{"HUSH_T": "valor-ultrasecreto-123"},
+				[]string{"sh", "-c", tc.script},
+				nil, &out, &errB,
+			)
+			if code != 0 {
+				t.Fatalf("exit %d: %s", code, errB.String())
+			}
+			flat := strings.Join(strings.Fields(out.String()), "")
+			for _, half := range []string{"valor-ultr", "asecreto-123"} {
+				if strings.Contains(flat, half) {
+					t.Fatalf("quedó visible %q en %q", half, out.String())
+				}
+			}
+			if !strings.Contains(out.String(), "REDACTED") {
+				t.Fatalf("falta marca: %q", out.String())
+			}
+		})
 	}
 }

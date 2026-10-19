@@ -3,6 +3,7 @@ package runner
 import (
 	"bytes"
 	"context"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -57,5 +58,86 @@ func TestMataGrupoCompleto(t *testing.T) {
 	}
 	if code == 0 {
 		t.Fatal("exit 0 con kill")
+	}
+}
+
+func TestRunStreamEntregaAntesDeEOF(t *testing.T) {
+	inR, inW, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	outR, outW, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var errB bytes.Buffer
+	done := make(chan int, 1)
+	go func() {
+		done <- RunStream(
+			context.Background(),
+			nil,
+			[]string{"sh", "-c", "echo hola; cat > /dev/null"},
+			inR, outW, &errB,
+		)
+	}()
+
+	lineCh := make(chan string, 1)
+	go func() {
+		var first bytes.Buffer
+		tmp := make([]byte, 1)
+		for {
+			n, rerr := outR.Read(tmp)
+			if n > 0 {
+				first.Write(tmp[:n])
+				if tmp[0] == '\n' {
+					break
+				}
+			}
+			if rerr != nil {
+				break
+			}
+		}
+		lineCh <- first.String()
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	select {
+	case line := <-lineCh:
+		if !strings.Contains(line, "hola") {
+			t.Fatalf("primera línea inesperada: %q", line)
+		}
+	case <-ctx.Done():
+		t.Fatal("stream no entregó nada antes de EOF: retiene stdout")
+	}
+
+	_ = inW.Close()
+	_ = outW.Close()
+	select {
+	case code := <-done:
+		if code != 0 {
+			t.Fatalf("exit %d, quiero 0", code)
+		}
+	case <-ctx.Done():
+		t.Fatal("el hijo no terminó tras EOF")
+	}
+}
+
+func TestRunStreamRedacta(t *testing.T) {
+	var out, errB bytes.Buffer
+	code := RunStream(
+		context.Background(),
+		map[string]string{"HUSH_T": "valor-ultrasecreto"},
+		[]string{"sh", "-c", "echo la key es $HUSH_T"},
+		nil, &out, &errB,
+	)
+	if code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	if strings.Contains(out.String(), "valor-ultrasecreto") {
+		t.Fatalf("salida sin redactar: %q", out.String())
+	}
+	if !strings.Contains(out.String(), "[REDACTED]") {
+		t.Fatalf("falta marca: %q", out.String())
 	}
 }

@@ -11,11 +11,13 @@ import (
 )
 
 type Harness struct {
-	Name    string
-	Kind    string
-	Detect  func(home, pathEnv string) bool
-	Apply   func(home string, command string) (string, error)
-	Snippet func(command string) string
+	Name      string
+	Kind      string
+	Detect    func(home, pathEnv string) bool
+	Apply     func(home string, command string) (string, error)
+	Snippet   func(command string) string
+	Protect   func(home string) (string, error)
+	Protected func(home string) bool
 }
 
 func Harnesses() []Harness {
@@ -26,8 +28,10 @@ func Harnesses() []Harness {
 			Detect: func(_, pathEnv string) bool {
 				return hasBinary(pathEnv, "claude")
 			},
-			Apply:   applyClaude,
-			Snippet: func(command string) string { return "claude mcp add hush -- " + command + " serve" },
+			Apply:     applyClaude,
+			Snippet:   func(command string) string { return "claude mcp add hush -- " + command + " serve" },
+			Protect:   protectWith(claudeSettingsPath, mergeClaude),
+			Protected: protectedWith(claudeSettingsPath, mergeClaude),
 		},
 		{
 			Name: "opencode",
@@ -41,6 +45,8 @@ func Harnesses() []Harness {
 			Snippet: func(command string) string {
 				return "{\"mcp\": {\"hush\": {\"type\": \"local\", \"command\": [\"" + command + "\", \"serve\"]}}}  (en opencode.json)"
 			},
+			Protect:   protectWith(opencodePath, mergeOpencode),
+			Protected: protectedWith(opencodePath, mergeOpencode),
 		},
 		{
 			Name: "cursor",
@@ -106,45 +112,73 @@ func applyClaude(_ string, command string) (string, error) {
 func applyJSON(pathOf func(string) string, root string, entry func(string) any) func(string, string) (string, error) {
 	return func(home string, command string) (string, error) {
 		path := pathOf(home)
-		var raw []byte
-		current, err := os.ReadFile(path)
-		if err != nil && !os.IsNotExist(err) {
-			return "", err
-		}
-		var config map[string]any
-		if len(current) > 0 {
-			if err := json.Unmarshal(current, &config); err != nil {
-				return "", fmt.Errorf("%s no es JSON válido, no lo toco: %w", path, err)
+		changed, err := editJSON(path, func(config map[string]any) (bool, error) {
+			section, _ := config[root].(map[string]any)
+			if section == nil {
+				section = map[string]any{}
 			}
-			raw = current
-		} else {
-			config = map[string]any{}
-		}
-		section, _ := config[root].(map[string]any)
-		if section == nil {
-			section = map[string]any{}
-		}
-		if _, ok := section["hush"]; ok {
-			return "ya estaba registrado", nil
-		}
-		section["hush"] = entry(command)
-		config[root] = section
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-			return "", err
-		}
-		if raw != nil {
-			backup := fmt.Sprintf("%s.bak-%d", path, time.Now().Unix())
-			if err := os.WriteFile(backup, raw, 0o600); err != nil {
-				return "", err
+			if _, ok := section["hush"]; ok {
+				return false, nil
 			}
-		}
-		out, err := json.MarshalIndent(config, "", "  ")
+			section["hush"] = entry(command)
+			config[root] = section
+			return true, nil
+		})
 		if err != nil {
 			return "", err
 		}
-		if err := os.WriteFile(path, append(out, '\n'), 0o600); err != nil {
-			return "", err
+		if !changed {
+			return "ya estaba registrado", nil
 		}
 		return "registrado en " + path, nil
 	}
+}
+
+// loadJSON devuelve la config y su contenido original (nil si no existía).
+func loadJSON(path string) (map[string]any, []byte, error) {
+	current, err := os.ReadFile(path)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, nil, err
+	}
+	if len(current) == 0 {
+		return map[string]any{}, nil, nil
+	}
+	var config map[string]any
+	if err := json.Unmarshal(current, &config); err != nil {
+		return nil, nil, fmt.Errorf("%s no es JSON válido, no lo toco: %w", path, err)
+	}
+	return config, current, nil
+}
+
+// editJSON aplica edit y, solo si cambió algo, respalda el original y
+// escribe el resultado. Un error de edit deja el archivo intacto.
+func editJSON(path string, edit func(map[string]any) (bool, error)) (bool, error) {
+	config, raw, err := loadJSON(path)
+	if err != nil {
+		return false, err
+	}
+	changed, err := edit(config)
+	if err != nil {
+		return false, fmt.Errorf("%s: %w", path, err)
+	}
+	if !changed {
+		return false, nil
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return false, err
+	}
+	if raw != nil {
+		backup := fmt.Sprintf("%s.bak-%d", path, time.Now().Unix())
+		if err := os.WriteFile(backup, raw, 0o600); err != nil {
+			return false, err
+		}
+	}
+	out, err := json.MarshalIndent(config, "", "  ")
+	if err != nil {
+		return false, err
+	}
+	if err := os.WriteFile(path, append(out, '\n'), 0o600); err != nil {
+		return false, err
+	}
+	return true, nil
 }

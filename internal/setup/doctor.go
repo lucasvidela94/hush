@@ -58,6 +58,22 @@ func runChecks(home string, store vault.Store, version, command string) []Check 
 	checks = append(checks, vaultChecks(store)...)
 	checks = append(checks, skillChecks(home)...)
 	checks = append(checks, mcpChecks(home, command)...)
+	checks = append(checks, guardChecks(home)...)
+	return checks
+}
+
+func guardChecks(home string) []Check {
+	checks := []Check{}
+	for _, h := range Harnesses() {
+		if h.Protected == nil {
+			continue
+		}
+		if h.Protected(home) {
+			checks = append(checks, Check{Name: "reglas " + h.Name, Status: OK})
+			continue
+		}
+		checks = append(checks, Check{Name: "reglas " + h.Name, Status: Warn, Detail: "el agente puede leer ~/.hush, corré hush setup"})
+	}
 	return checks
 }
 

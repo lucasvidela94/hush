@@ -1,5 +1,14 @@
 # Changelog
 
+## Sin publicar
+
+- `hush setup` ofrece agregar reglas de permisos para que el agente no lea ni
+  edite `~/.hush` con sus herramientas y pida confirmación en `hush run`,
+  `stdin` y `export`: Claude Code (`~/.claude/settings.json`) y opencode v2
+  (`permissions`). Fusiona con las reglas existentes y deja backup.
+  `hush doctor` avisa si faltan. Antes eran solo una recomendación en
+  `SECURITY.md`, y sin ellas un agente con shell leía el vault con un `cat`.
+
 ## v0.7.0
 
 - `hush run --stream --only A,B -- cmd` reenvía stdout/stderr por línea a

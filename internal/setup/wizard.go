@@ -58,7 +58,28 @@ func Wizard(home string, stdin *os.File, stdout io.Writer, command string) int {
 		}
 		fmt.Fprintf(stdout, "  ✓ %s\n", msg)
 	}
-	fmt.Fprintln(stdout, "\nListo. Reiniciá tu harness para que tome el servidor MCP.")
+
+	for _, h := range found {
+		if h.Protect == nil {
+			continue
+		}
+		fmt.Fprintf(stdout, "\n## %s: que el agente no lea ~/.hush\n", h.Name)
+		if h.Protected(home) {
+			fmt.Fprintln(stdout, "  ✓ ya estaba protegido")
+			continue
+		}
+		fmt.Fprintln(stdout, "  Bloquea leer y editar ~/.hush y pide confirmación en hush run, stdin y export.")
+		if !ask(reader, stdout, "  ¿agrego las reglas? [S/n] ") {
+			continue
+		}
+		msg, err := h.Protect(home)
+		if err != nil {
+			fmt.Fprintf(stdout, "  ⚠ %s\n", err)
+			continue
+		}
+		fmt.Fprintf(stdout, "  ✓ %s\n", msg)
+	}
+	fmt.Fprintln(stdout, "\nListo. Reiniciá tu harness para que tome el servidor MCP y las reglas.")
 	return 0
 }
 

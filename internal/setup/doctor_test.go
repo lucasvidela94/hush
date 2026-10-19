@@ -36,6 +36,25 @@ func TestDoctorTodoBien(t *testing.T) {
 	}
 }
 
+func TestDoctorReglas(t *testing.T) {
+	home := t.TempDir()
+	store := vault.New(filepath.Join(home, ".hush"))
+	run := func() string {
+		var out bytes.Buffer
+		Doctor(home, store, "v9.9.9", "/bin/hush", &out)
+		return out.String()
+	}
+	if out := run(); !strings.Contains(out, "− reglas claude: el agente puede leer ~/.hush") {
+		t.Fatalf("no avisa reglas faltantes:\n%s", out)
+	}
+	if _, err := harnessNamed(t, "claude").Protect(home); err != nil {
+		t.Fatal(err)
+	}
+	if out := run(); !strings.Contains(out, "✓ reglas claude") {
+		t.Fatalf("no ve las reglas:\n%s", out)
+	}
+}
+
 func TestDoctorCasaVaciaAvisa(t *testing.T) {
 	home := t.TempDir()
 	store := vault.New(filepath.Join(home, ".hush"))

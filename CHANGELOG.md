@@ -1,6 +1,6 @@
 # Changelog
 
-## Sin publicar
+## v0.8.0
 
 - `hush setup` escribe `~/.codex/rules/hush.rules` para que Codex pida
   confirmación en `hush run`, `stdin` y `export`, aunque antes se haya
